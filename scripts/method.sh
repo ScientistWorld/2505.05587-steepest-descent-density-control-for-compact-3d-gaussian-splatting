@@ -10,5 +10,7 @@ set -e
 
 cd /home/user
 
-# TODO: run the paper's method
-# TODO: call scripts/evaluate.sh to score
+python -m method.sdc2d.steepgs2d \
+  --output outputs/steepgs2d \
+  --device cpu \
+  "$@"

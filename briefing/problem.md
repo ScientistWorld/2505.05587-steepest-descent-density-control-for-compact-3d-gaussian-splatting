@@ -1,17 +1,13 @@
 # Problem Definition
 
-What problem does this paper address? Write this so that someone with no knowledge of the paper can understand what needs to be solved and how success is measured.
-
-Do NOT describe the paper's method or solution here — only the problem itself. Think about if a future scientist agent try to solve this problem from scratch without knowing what approach the paper took. If you leak the solution, you compromise the benchmark.
-
 ## Research Question
 
-<!-- What problem or challenge does this paper tackle? What gap in existing work does it address? -->
+How can a Gaussian-splatting radiance-field reconstruction system maintain high novel-view or pixel reconstruction quality while using substantially fewer Gaussian primitives than a standard adaptive-density training pipeline?
 
 ## Why It Matters
 
-<!-- Why is this problem important? What would a good solution enable? Make it short -->
+Dense Gaussian point clouds increase model storage, memory use, and rendering cost. A successful compact training procedure makes Gaussian splatting more practical for interactive and resource-constrained rendering.
 
 ## Success Criteria
 
-<!-- What would a successful solution look like? What properties should it have? This is about the goal, not the paper's specific approach. Make it short -->
+A good solution should reconstruct held-out colors with high PSNR/SSIM and low error while reducing the final number of primitives and the compute implied by rendering those primitives. The quality/compactness tradeoff must be evaluated against a baseline trained under the same data and optimization budget.
