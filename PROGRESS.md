@@ -16,12 +16,16 @@
 
 ## Results
 
-- No scored runtime artifacts yet. The next submitted job runs `scripts/reproduce.sh` to produce `outputs/` and `scoring/scores.json`.
+- Job `ff32c404-801` completed successfully and produced scored artifacts.
+- ADC baseline: PSNR 40.325, SSIM 0.9975, L1 0.0060, 144 raw points.
+- Initial SteepGS run: PSNR 39.995, SSIM 0.9975, L1 0.0062, 144 raw points.
+- This establishes `method_runs`, but not `core_claim`, because SteepGS did not reduce point count relative to ADC in that setting.
 
 ## Remaining
 
-- Run the scheduled reproduction job and inspect `scoring/scores.json`.
-- If the corrected SDC method runs but does not show compactness at comparable quality, tune thresholds/training scale without changing the algorithm and resubmit.
+- Run the submitted SDC split-threshold sweep and inspect `outputs/sdc_sweep/selection.json` plus `scoring/scores.json`.
+- If the sweep identifies a compact candidate with comparable quality, promote the selected settings into `scripts/method.sh` and update the documentation.
+- If quality collapses for compact settings, tune the procedural scene or SDC thresholds without replacing the algorithm.
 - After successful runtime, update `MILESTONES.md`, `scoring/EXPERIMENTS.md`, and this progress log with actual numbers.
 
 ## Issues
@@ -29,6 +33,7 @@
 - The login environment lacks declared numerical packages (`numpy`), so runtime smoke tests are deferred to the scheduler/container path where `environment/setup.sh` installs dependencies.
 - This reproduction uses a scaled 2D procedural splatting benchmark rather than full CUDA 3DGS on Mip-NeRF360/Tanks/Deep Blending.
 - Audit fix applied: baseline no longer imports the proposed method module, and score units no longer compare raw 2D primitive counts directly against million-point paper results.
+- First runtime issue: the default SDC threshold was too permissive on the scaled scene, causing the proposed method to densify to the same cap as ADC. The next job sweeps stricter negative-eigenvalue thresholds and selects from saved artifacts only.
 
 ## Deviations from Paper
 
