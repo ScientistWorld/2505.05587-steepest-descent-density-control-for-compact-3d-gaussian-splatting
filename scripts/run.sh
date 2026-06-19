@@ -13,5 +13,12 @@ set -e
 
 cd /home/user
 
-bash scripts/reproduce.sh
+rm -f \
+  scoring/scores_train.json \
+  scoring/scores_test.json \
+  scoring/evaluation_manifest_train.json \
+  scoring/evaluation_manifest_test.json
+
+bash scripts/evaluate_train.sh
+bash scripts/evaluate_test.sh
 python validate.py
