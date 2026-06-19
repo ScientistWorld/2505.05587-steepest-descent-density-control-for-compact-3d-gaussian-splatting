@@ -11,7 +11,7 @@ import torch
 import torch.nn.functional as F
 
 from data.synthetic_gaussian_scene import flops_proxy, l1_error, make_scene, psnr, ssim_global
-from method.sdc2d.steepgs2d import GaussianField2D
+from data.gaussian_field2d import GaussianField2D
 
 
 def _inverse_softplus(x: torch.Tensor) -> torch.Tensor:

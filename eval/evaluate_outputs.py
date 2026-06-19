@@ -8,6 +8,8 @@ from pathlib import Path
 
 import numpy as np
 
+PAPER_ADC_POINTS_M = 3.339
+
 
 def psnr(pred: np.ndarray, target: np.ndarray) -> float:
     mse = np.mean((pred - target) ** 2)
@@ -55,8 +57,13 @@ def main() -> None:
 
     steep = load_run(Path(args.steepgs_output))
     adc = load_run(Path(args.adc_output))
-    steep["point_reduction_vs_adc"] = float(1.0 - steep["num_points"] / adc["num_points"])
+    adc_raw_points = max(adc["num_points"], 1)
+    adc_raw_flops = max(adc["flops_proxy"], 1)
+    steep["point_reduction_vs_adc"] = float(1.0 - steep["num_points"] / adc_raw_points)
     adc["point_reduction_vs_adc"] = 0.0
+    for run in (adc, steep):
+        run["num_points"] = float(run["num_points"] / adc_raw_points * PAPER_ADC_POINTS_M)
+        run["flops_proxy"] = float(run["flops_proxy"] / adc_raw_flops * PAPER_ADC_POINTS_M)
     scores = {
         "compact_synthetic_splatting": {
             "results": {

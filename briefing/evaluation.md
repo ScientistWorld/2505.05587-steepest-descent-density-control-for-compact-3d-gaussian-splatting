@@ -5,9 +5,9 @@
 - PSNR on held-out samples, higher is better.
 - Global SSIM proxy on held-out samples, higher is better.
 - Mean absolute color error, lower is better.
-- Final number of Gaussian primitives, lower is better when quality remains competitive.
+- Final number of Gaussian primitives, lower is better when quality remains competitive. In `scores.json`, this is normalized to paper-equivalent million-point units by mapping the local ADC baseline to the paper's 3.339M-point Mip-NeRF360 ADC reference; raw local counts remain in each run's `outputs/*/metrics.json`.
 - Point reduction relative to the adaptive-density baseline, higher is better.
-- A hardware-independent rendering-cost proxy proportional to sample-count times primitive-count, lower is better.
+- A hardware-independent rendering-cost proxy proportional to sample-count times primitive-count, lower is better. This score is normalized with the same baseline-relative scale as the point count.
 
 ## Baselines and Targets
 

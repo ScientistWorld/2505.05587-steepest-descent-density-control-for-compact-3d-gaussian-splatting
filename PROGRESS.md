@@ -10,6 +10,8 @@
   - replace each selected primitive with two offspring along the least eigenvector;
   - halve offspring opacities.
 - The ADC baseline now follows the paper's heuristic structure in the same 2D renderer: expected gradient-norm selection, clone/split by scale, random large-scale split samples, 0.8 scale shrink, and unchanged opacity.
+- The shared 2D Gaussian representation lives in `data/gaussian_field2d.py`, so baseline and method do not depend on each other for the problem representation.
+- `scoring/scores.json` reports point-count and FLOPs-proxy metrics in paper-equivalent baseline-normalized units while preserving raw local counts in `outputs/*/metrics.json`.
 - `python validate.py` passes static structure checks.
 
 ## Results
@@ -26,6 +28,7 @@
 
 - The login environment lacks declared numerical packages (`numpy`), so runtime smoke tests are deferred to the scheduler/container path where `environment/setup.sh` installs dependencies.
 - This reproduction uses a scaled 2D procedural splatting benchmark rather than full CUDA 3DGS on Mip-NeRF360/Tanks/Deep Blending.
+- Audit fix applied: baseline no longer imports the proposed method module, and score units no longer compare raw 2D primitive counts directly against million-point paper results.
 
 ## Deviations from Paper
 

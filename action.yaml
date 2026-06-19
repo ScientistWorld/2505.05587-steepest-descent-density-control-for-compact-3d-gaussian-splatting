@@ -5,4 +5,4 @@ action: submit
 gpus: 0
 test: true
 milestone: none
-notes: "Run corrected SteepGS 2D reproduction and ADC baseline end-to-end in the managed container; expect scores.json if method executes."
+notes: "Run audited SteepGS 2D reproduction after separating shared Gaussian data code and normalizing score units; expect scores.json if method executes."
