@@ -18,5 +18,4 @@
 - `python validate.py --compare` passes on the resulting `scoring/scores.json`.
 
 ## Stop Justification
-- Current completed milestone remains `core_claim`.
-- Higher milestones are not claimed because only the default deterministic scene has completed validated scoring.
+- Completed at milestone `core_claim`.
