@@ -11,23 +11,54 @@ import torch
 import torch.nn.functional as F
 
 from data.synthetic_gaussian_scene import flops_proxy, l1_error, make_scene, psnr, ssim_global
-from method.sdc2d.steepgs2d import GaussianField2D, _opacity_halved_logits
+from method.sdc2d.steepgs2d import GaussianField2D
 
 
-def adc_densify(model: GaussianField2D, max_points: int, epsilon: float) -> int:
-    if model.xy.grad is None or model.num_points >= max_points:
+def _inverse_softplus(x: torch.Tensor) -> torch.Tensor:
+    x = x.clamp_min(1e-6)
+    return x + torch.log(-torch.expm1(-x))
+
+
+def adc_densify(
+    model: GaussianField2D,
+    grad_norm_accum: torch.Tensor,
+    interval_count: int,
+    max_points: int,
+    epsilon: float,
+    grad_threshold: float,
+    scale_threshold: float,
+    generator: torch.Generator,
+) -> int:
+    if model.num_points >= max_points:
         return 0
-    grad_norm = model.xy.grad.detach().norm(dim=-1)
+    avg_grad_norm = grad_norm_accum / max(1, interval_count)
+    eligible = avg_grad_norm >= grad_threshold
     capacity = max_points - model.num_points
-    k = min(capacity, max(1, model.num_points // 4))
-    selected_idx = torch.argsort(grad_norm, descending=True)[:k]
-    directions = model.xy.grad.detach()[selected_idx]
+    if int(eligible.sum()) > capacity:
+        idx = torch.where(eligible)[0]
+        selected_idx = idx[torch.argsort(avg_grad_norm[idx], descending=True)[:capacity]]
+    else:
+        selected_idx = torch.where(eligible)[0]
+    if selected_idx.numel() == 0:
+        return 0
+
+    directions = model.xy.grad.detach()[selected_idx] if model.xy.grad is not None else model.xy.detach()[selected_idx]
     directions = directions / (directions.norm(dim=-1, keepdim=True) + 1e-8)
     parent_xy = model.xy.detach()[selected_idx]
-    new_xy = torch.cat([parent_xy + epsilon * directions, parent_xy - epsilon * directions], dim=0)
-    new_log_scale = model.log_scale.detach()[selected_idx].repeat(2, 1)
-    new_opacity_logit = _opacity_halved_logits(model.opacity_logit.detach()[selected_idx]).repeat(2, 1)
-    new_color_logit = model.color_logit.detach()[selected_idx].repeat(2, 1)
+    parent_log_scale = model.log_scale.detach()[selected_idx]
+    parent_scales = torch.nn.functional.softplus(parent_log_scale) + 0.015
+    large = parent_scales.max(dim=-1).values > scale_threshold
+
+    clone_xy = torch.stack([parent_xy + epsilon * directions, parent_xy - epsilon * directions], dim=1)
+    noise = torch.randn(selected_idx.numel(), 2, 2, generator=generator, device=parent_xy.device)
+    split_xy = parent_xy[:, None, :] + noise * parent_scales[:, None, :]
+    new_xy = torch.where(large[:, None, None], split_xy, clone_xy).reshape(-1, 2)
+
+    shrunk_scale_param = _inverse_softplus((0.8 * parent_scales - 0.015).clamp_min(0.01))
+    offspring_log_scale = torch.where(large[:, None], shrunk_scale_param, parent_log_scale)
+    new_log_scale = offspring_log_scale.repeat_interleave(2, dim=0)
+    new_opacity_logit = model.opacity_logit.detach()[selected_idx].repeat_interleave(2, dim=0)
+    new_color_logit = model.color_logit.detach()[selected_idx].repeat_interleave(2, dim=0)
     keep = torch.ones(model.num_points, dtype=torch.bool, device=model.xy.device)
     keep[selected_idx] = False
     model.replace_points(keep, new_xy, new_log_scale, new_opacity_logit, new_color_logit)
@@ -40,6 +71,8 @@ def train(args: argparse.Namespace) -> dict[str, float]:
     scene = make_scene(seed=args.seed, device=device, image_size=args.image_size, n_train=args.n_train, n_test=args.n_test)
     model = GaussianField2D(args.init_points, args.seed, device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    grad_norm_accum = torch.zeros(args.init_points, device=device)
+    interval_count = 0
     total_splits = 0
     history = []
     generator = torch.Generator(device="cpu")
@@ -53,11 +86,24 @@ def train(args: argparse.Namespace) -> dict[str, float]:
         pred, _, _, _ = model(xy)
         loss = F.l1_loss(pred, target) + 0.2 * F.mse_loss(pred, target)
         loss.backward()
+        grad_norm_accum = grad_norm_accum + model.xy.grad.detach().norm(dim=-1)
+        interval_count += 1
         if step >= args.densify_from and step % args.densify_interval == 0 and model.num_points < args.max_points:
-            splits = adc_densify(model, args.max_points, args.epsilon)
+            splits = adc_densify(
+                model,
+                grad_norm_accum,
+                interval_count,
+                args.max_points,
+                args.epsilon,
+                args.grad_threshold,
+                args.scale_threshold,
+                generator,
+            )
             total_splits += splits
             history.append({"step": step, "points": model.num_points, "splits": splits})
             optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+            grad_norm_accum = torch.zeros(model.num_points, device=device)
+            interval_count = 0
         else:
             optimizer.step()
 
@@ -101,6 +147,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--densify-from", type=int, default=150)
     p.add_argument("--densify-interval", type=int, default=75)
     p.add_argument("--epsilon", type=float, default=0.045)
+    p.add_argument("--grad-threshold", type=float, default=0.001)
+    p.add_argument("--scale-threshold", type=float, default=0.13)
     return p
 
 

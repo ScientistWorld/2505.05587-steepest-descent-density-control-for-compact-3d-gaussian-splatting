@@ -2,36 +2,34 @@
 
 ## What Works
 
-<!-- What has been successfully reproduced so far. -->
+- Paper analysis and benchmark scaffolding are in place for SteepGS / Steepest Density Control.
+- The scaled method implements the core SDC computation on a 2D differentiable Gaussian splatting renderer:
+  - accumulate per-Gaussian splitting matrices as `E[(dL/dsigma_i) Hessian(sigma_i)]`;
+  - accumulate mean position gradients for compact splitting;
+  - split only negative-minimum-eigenvalue, small-mean-gradient primitives;
+  - replace each selected primitive with two offspring along the least eigenvector;
+  - halve offspring opacities.
+- The ADC baseline now follows the paper's heuristic structure in the same 2D renderer: expected gradient-norm selection, clone/split by scale, random large-scale split samples, 0.8 scale shrink, and unchanged opacity.
+- `python validate.py` passes static structure checks.
 
 ## Results
 
-<!-- Reproduced numbers compared to the paper's reported numbers. -->
+- No scored runtime artifacts yet. The next submitted job runs `scripts/reproduce.sh` to produce `outputs/` and `scoring/scores.json`.
 
 ## Remaining
 
-<!-- What still needs to be done to reach higher milestones. -->
+- Run the scheduled reproduction job and inspect `scoring/scores.json`.
+- If the corrected SDC method runs but does not show compactness at comparable quality, tune thresholds/training scale without changing the algorithm and resubmit.
+- After successful runtime, update `MILESTONES.md`, `scoring/EXPERIMENTS.md`, and this progress log with actual numbers.
 
 ## Issues
 
-<!-- Blockers, bugs, or difficulties encountered. -->
+- The login environment lacks declared numerical packages (`numpy`), so runtime smoke tests are deferred to the scheduler/container path where `environment/setup.sh` installs dependencies.
+- This reproduction uses a scaled 2D procedural splatting benchmark rather than full CUDA 3DGS on Mip-NeRF360/Tanks/Deep Blending.
 
 ## Deviations from Paper
 
-<!-- Do not edit this section unless you deviated from the paper's original setup.
-     For each deviation, document: what the paper used, what you substituted, and why.
-
-     ACCEPTABLE deviations (data/resource/scale substitutions — milestones still valid):
-       - Replaced a proprietary dataset with a public one
-       - Used a smaller model of the same architecture
-       - Scaled down training (fewer epochs, smaller batch)
-       - Used a different library for the same algorithm
-
-     UNACCEPTABLE deviations (algorithm substitutions — milestones above 'none' are void):
-       - Replaced the paper's algorithm with a fundamentally different one
-       - Wrote a generic model trained to approximate the method's outputs
-         instead of implementing the method's computational steps
-
-     The test: could someone reading your code identify which algorithm from
-     the paper you implemented? If not, you replaced the method. -->
-
+- Paper setup: full 3D Gaussian Splatting with CUDA rasterization on real novel-view synthesis datasets.
+- Reproduction setup: a deterministic 2D Gaussian splatting renderer with sampled held-out colors.
+- Reason: full 3DGS training and dataset acquisition are heavier than needed for the first runnable benchmark; the scaled task preserves the density-control computation while making the gym cheap and deterministic.
+- Algorithm preservation: the SDC splitting matrix, least-eigenvector split, negative-eigenvalue condition, compact small-mean-gradient condition, two offspring, and opacity halving are implemented directly.

@@ -12,12 +12,9 @@
 # Estimated total download size: 0 GB
 # Estimated disk usage after extraction: 0 GB
 #
-# During reproduction, prefer downloading to shared directories
-# (shared/datasets/, shared/models/) so other papers can reuse them.
-# You do not need to run this script during reproduction — it exists
-# for future portability. Write it to download to workspace-local
-# paths (data/, checkpoints/) instead of the shared directories
-# so a future user with just the workspace can run this script and get everything they need.
+# This reproduction uses a tracked procedural scene generator, so there are no
+# external datasets or model weights to fetch. Future additions should download
+# into data/downloads/ with idempotent guards.
 
 set -e
 

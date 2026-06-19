@@ -60,19 +60,19 @@ def _opacity_halved_logits(parent_logits: torch.Tensor) -> torch.Tensor:
     return torch.log(opacity / (1 - opacity))
 
 
-def compute_splitting_matrices(model: GaussianField2D, xy: torch.Tensor, target: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-    pred, basis, diff, scales = model(xy)
-    residual = (pred - target).detach()
-    color = torch.sigmoid(model.color_logit).detach()
-    denom = basis.sum(dim=-1, keepdim=True).detach() + 0.25
-    dloss_dbasis = torch.einsum("bc,nc->bn", residual / denom, color)
+def compute_splitting_matrices(
+    basis: torch.Tensor,
+    diff: torch.Tensor,
+    scales: torch.Tensor,
+    dloss_dbasis: torch.Tensor,
+) -> torch.Tensor:
+    """Accumulate S_i = E[(dL/d sigma_i) * Hessian_center(sigma_i)]."""
     inv_var = 1.0 / (scales.detach() ** 2)
     outer = diff[:, :, :, None] * diff[:, :, None, :] * inv_var[None, :, :, None] * inv_var[None, :, None, :]
     hessian = basis.detach()[:, :, None, None] * (outer - torch.diag_embed(inv_var)[None, :, :, :])
-    splitting = torch.einsum("bn,bnij->nij", dloss_dbasis, hessian) / xy.shape[0]
+    splitting = torch.einsum("bn,bnij->nij", dloss_dbasis.detach(), hessian) / basis.shape[0]
     splitting = 0.5 * (splitting + splitting.transpose(-1, -2))
-    grad_norm = model.xy.grad.detach().norm(dim=-1) if model.xy.grad is not None else torch.zeros(model.num_points, device=xy.device)
-    return splitting, grad_norm
+    return splitting
 
 
 def steepest_densify(
@@ -87,10 +87,11 @@ def steepest_densify(
 ) -> dict[str, float]:
     S = splitting_accum / max(1, interval_count)
     G = grad_accum / max(1, interval_count)
+    mean_grad_norm = G.norm(dim=-1)
     eigvals, eigvecs = torch.linalg.eigh(S)
     lambda_min = eigvals[:, 0]
     v_min = eigvecs[:, :, 0]
-    eligible = (lambda_min < split_threshold) & (G <= grad_threshold)
+    eligible = (lambda_min < split_threshold) & (mean_grad_norm <= grad_threshold)
     capacity = max(0, max_points - model.num_points)
     if int(eligible.sum()) > capacity:
         idx = torch.where(eligible)[0]
@@ -101,7 +102,12 @@ def steepest_densify(
         selected = eligible
     selected_idx = torch.where(selected)[0]
     if selected_idx.numel() == 0:
-        return {"splits": 0, "min_lambda": float(lambda_min.min()), "eligible": int(eligible.sum())}
+        return {
+            "splits": 0,
+            "min_lambda": float(lambda_min.min()),
+            "min_mean_grad_norm": float(mean_grad_norm.min()),
+            "eligible": int(eligible.sum()),
+        }
 
     parent_xy = model.xy.detach()[selected_idx]
     direction = v_min[selected_idx]
@@ -112,7 +118,12 @@ def steepest_densify(
     keep = torch.ones(model.num_points, dtype=torch.bool, device=model.xy.device)
     keep[selected_idx] = False
     model.replace_points(keep, new_xy, new_log_scale, new_opacity_logit, new_color_logit)
-    return {"splits": int(selected_idx.numel()), "min_lambda": float(lambda_min.min()), "eligible": int(eligible.sum())}
+    return {
+        "splits": int(selected_idx.numel()),
+        "min_lambda": float(lambda_min.min()),
+        "min_mean_grad_norm": float(mean_grad_norm.min()),
+        "eligible": int(eligible.sum()),
+    }
 
 
 def train(args: argparse.Namespace) -> dict[str, float]:
@@ -122,7 +133,7 @@ def train(args: argparse.Namespace) -> dict[str, float]:
     model = GaussianField2D(args.init_points, args.seed, device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     split_accum = torch.zeros(args.init_points, 2, 2, device=device)
-    grad_accum = torch.zeros(args.init_points, device=device)
+    grad_accum = torch.zeros(args.init_points, 2, device=device)
     interval_count = 0
     total_splits = 0
     history = []
@@ -134,13 +145,15 @@ def train(args: argparse.Namespace) -> dict[str, float]:
         xy = scene.train_xy[idx]
         target = scene.train_rgb[idx]
         optimizer.zero_grad(set_to_none=True)
-        pred, _, _, _ = model(xy)
+        pred, basis, diff, scales = model(xy)
         loss = F.l1_loss(pred, target) + 0.2 * F.mse_loss(pred, target)
+        dloss_dbasis = torch.autograd.grad(loss, basis, retain_graph=True)[0]
         loss.backward()
-        S, grad_norm = compute_splitting_matrices(model, xy, target)
+        S = compute_splitting_matrices(basis, diff, scales, dloss_dbasis)
+        grad_vector = model.xy.grad.detach().clone()
         optimizer.step()
         split_accum = split_accum + S
-        grad_accum = grad_accum + grad_norm
+        grad_accum = grad_accum + grad_vector
         interval_count += 1
 
         if step >= args.densify_from and step % args.densify_interval == 0 and model.num_points < args.max_points:
@@ -158,7 +171,7 @@ def train(args: argparse.Namespace) -> dict[str, float]:
             history.append({"step": step, "points": model.num_points, **info})
             optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
             split_accum = torch.zeros(model.num_points, 2, 2, device=device)
-            grad_accum = torch.zeros(model.num_points, device=device)
+            grad_accum = torch.zeros(model.num_points, 2, device=device)
             interval_count = 0
 
     with torch.no_grad():
@@ -197,7 +210,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--n-test", type=int, default=4096)
     p.add_argument("--image-size", type=int, default=96)
     p.add_argument("--init-points", type=int, default=12)
-    p.add_argument("--max-points", type=int, default=72)
+    p.add_argument("--max-points", type=int, default=144)
     p.add_argument("--lr", type=float, default=0.045)
     p.add_argument("--densify-from", type=int, default=150)
     p.add_argument("--densify-interval", type=int, default=75)
