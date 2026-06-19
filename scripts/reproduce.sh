@@ -21,5 +21,5 @@ cd /home/user
 rm -rf outputs/adc2d outputs/steepgs2d scoring/scores.json
 
 bash scripts/baseline.sh
-bash scripts/method.sh
+bash scripts/sweep_sdc.sh
 bash scripts/evaluate.sh

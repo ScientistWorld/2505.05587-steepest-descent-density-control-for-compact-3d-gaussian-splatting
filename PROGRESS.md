@@ -13,7 +13,7 @@
 - The shared 2D Gaussian representation lives in `data/gaussian_field2d.py`, so baseline and method do not depend on each other for the problem representation.
 - `scoring/scores.json` reports point-count and FLOPs-proxy metrics in paper-equivalent baseline-normalized units while preserving raw local counts in `outputs/*/metrics.json`.
 - `python validate.py` passes static structure checks.
-- `scripts/reproduce.sh` is configured to run the compact SDC setting selected by the threshold sweep.
+- `scripts/reproduce.sh` is configured to run ADC, sweep compact SDC settings, select a saved candidate from artifacts, and evaluate the selected outputs.
 
 ## Results
 
@@ -24,12 +24,14 @@
 - Job `e42fcb49-00a` swept SDC split thresholds and selected `split_threshold = -5e-05`.
 - Selected SteepGS result: PSNR 37.707, SSIM 0.9958, L1 0.0086, 38 raw points, 26 splits.
 - In paper-normalized score units, SteepGS uses 0.881 points/FLOPs proxy versus ADC's 3.339, with `point_reduction_vs_adc = 0.736`.
-- This reaches `core_claim`: SDC preserves high reconstruction quality while substantially reducing Gaussian primitives.
+- This does not yet reach `core_claim`: SDC reduced Gaussian primitives substantially, but the selected run lost 2.62 dB PSNR against the local ADC baseline.
 - Job `d156a838-cbf` verified the direct `scripts/reproduce.sh` path and regenerated the same scores with `python validate.py` passing.
-- Continuation audit on 2026-06-19 17:01 verified that the implementation is a faithful scaled SDC reproduction rather than a surrogate, that `eval/` is method-independent, and that `scripts/evaluate.sh` plus `python validate.py --compare` pass on the saved artifacts.
+- Continuation audit on 2026-06-19 17:06 verified that the implementation is a faithful scaled SDC reproduction rather than a surrogate, that `eval/` is method-independent, and that `scripts/evaluate.sh` plus `python validate.py --compare` pass on the saved artifacts.
+- The same audit identified that the ADC baseline skipped optimizer steps on densification iterations; this has been fixed before the next sweep.
 
 ## Remaining
 
+- Re-run the cleaner ADC baseline and SDC sweep. Claim `core_claim` only if the selected SDC candidate keeps the PSNR gap acceptably small while reducing point count.
 - Higher milestones would require adding additional scenes/seeds or a closer full-3DGS implementation.
 
 ## Issues
@@ -37,6 +39,7 @@
 - The login environment lacks declared numerical packages (`numpy`), so runtime smoke tests are deferred to the scheduler/container path where `environment/setup.sh` installs dependencies.
 - This reproduction uses a scaled 2D procedural splatting benchmark rather than full CUDA 3DGS on Mip-NeRF360/Tanks/Deep Blending.
 - Audit fix applied: baseline no longer imports the proposed method module, and score units no longer compare raw 2D primitive counts directly against million-point paper results.
+- Audit fix applied: ADC now performs an optimizer update on densification iterations and uses clone/split growth closer to standard ADC semantics.
 - First runtime issue: the default SDC threshold was too permissive on the scaled scene, causing the proposed method to densify to the same cap as ADC. The next job sweeps stricter negative-eigenvalue thresholds and selects from saved artifacts only.
 - The compact selected SDC run trades about 2.62 dB PSNR relative to the local ADC baseline, but remains far above the paper-scale PSNR reference and retains very high SSIM on this deterministic benchmark.
 - Direct verification job `3beaea5e-e10` failed before running SteepGS because `--split-threshold -5e-05` was parsed as a missing argument by `argparse`. Fixed by using `--split-threshold=-5e-05`.

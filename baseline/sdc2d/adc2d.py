@@ -33,6 +33,8 @@ def adc_densify(
         return 0
     avg_grad_norm = grad_norm_accum / max(1, interval_count)
     eligible = avg_grad_norm >= grad_threshold
+    # Each selected primitive increases the total count by one: clone keeps the
+    # parent and appends one copy; split removes the parent and appends two.
     capacity = max_points - model.num_points
     if int(eligible.sum()) > capacity:
         idx = torch.where(eligible)[0]
@@ -49,18 +51,35 @@ def adc_densify(
     parent_scales = torch.nn.functional.softplus(parent_log_scale) + 0.015
     large = parent_scales.max(dim=-1).values > scale_threshold
 
-    clone_xy = torch.stack([parent_xy + epsilon * directions, parent_xy - epsilon * directions], dim=1)
+    clone_xy = parent_xy + epsilon * directions
     noise = torch.randn(selected_idx.numel(), 2, 2, generator=generator, device=parent_xy.device)
     split_xy = parent_xy[:, None, :] + noise * parent_scales[:, None, :]
-    new_xy = torch.where(large[:, None, None], split_xy, clone_xy).reshape(-1, 2)
 
     shrunk_scale_param = _inverse_softplus((0.8 * parent_scales - 0.015).clamp_min(0.01))
-    offspring_log_scale = torch.where(large[:, None], shrunk_scale_param, parent_log_scale)
-    new_log_scale = offspring_log_scale.repeat_interleave(2, dim=0)
-    new_opacity_logit = model.opacity_logit.detach()[selected_idx].repeat_interleave(2, dim=0)
-    new_color_logit = model.color_logit.detach()[selected_idx].repeat_interleave(2, dim=0)
     keep = torch.ones(model.num_points, dtype=torch.bool, device=model.xy.device)
-    keep[selected_idx] = False
+    keep[selected_idx[large]] = False
+
+    new_xy_parts = []
+    new_log_scale_parts = []
+    new_opacity_parts = []
+    new_color_parts = []
+    if (~large).any():
+        small_idx = torch.where(~large)[0]
+        new_xy_parts.append(clone_xy[small_idx])
+        new_log_scale_parts.append(parent_log_scale[small_idx])
+        new_opacity_parts.append(model.opacity_logit.detach()[selected_idx[small_idx]])
+        new_color_parts.append(model.color_logit.detach()[selected_idx[small_idx]])
+    if large.any():
+        large_idx = torch.where(large)[0]
+        new_xy_parts.append(split_xy[large_idx].reshape(-1, 2))
+        new_log_scale_parts.append(shrunk_scale_param[large_idx].repeat_interleave(2, dim=0))
+        new_opacity_parts.append(model.opacity_logit.detach()[selected_idx[large_idx]].repeat_interleave(2, dim=0))
+        new_color_parts.append(model.color_logit.detach()[selected_idx[large_idx]].repeat_interleave(2, dim=0))
+
+    new_xy = torch.cat(new_xy_parts, dim=0)
+    new_log_scale = torch.cat(new_log_scale_parts, dim=0)
+    new_opacity_logit = torch.cat(new_opacity_parts, dim=0)
+    new_color_logit = torch.cat(new_color_parts, dim=0)
     model.replace_points(keep, new_xy, new_log_scale, new_opacity_logit, new_color_logit)
     return int(selected_idx.numel())
 
@@ -87,6 +106,7 @@ def train(args: argparse.Namespace) -> dict[str, float]:
         loss = F.l1_loss(pred, target) + 0.2 * F.mse_loss(pred, target)
         loss.backward()
         grad_norm_accum = grad_norm_accum + model.xy.grad.detach().norm(dim=-1)
+        optimizer.step()
         interval_count += 1
         if step >= args.densify_from and step % args.densify_interval == 0 and model.num_points < args.max_points:
             splits = adc_densify(
@@ -104,8 +124,6 @@ def train(args: argparse.Namespace) -> dict[str, float]:
             optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
             grad_norm_accum = torch.zeros(model.num_points, device=device)
             interval_count = 0
-        else:
-            optimizer.step()
 
     with torch.no_grad():
         test_pred = model(scene.test_xy)[0]

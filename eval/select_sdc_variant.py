@@ -20,7 +20,7 @@ def score_candidate(candidate: dict[str, float], adc: dict[str, float], psnr_tol
     reduction = 1.0 - candidate["num_points"] / max(adc["num_points"], 1)
     psnr_gap = adc["psnr"] - candidate["psnr"]
     compact_bonus = 8.0 * reduction
-    quality_penalty = 3.0 * max(0.0, psnr_gap - psnr_tolerance)
+    quality_penalty = 8.0 * max(0.0, psnr_gap - psnr_tolerance)
     return candidate["psnr"] + compact_bonus - quality_penalty
 
 
@@ -31,6 +31,7 @@ def main() -> None:
     parser.add_argument("--selected-output", default="outputs/steepgs2d")
     parser.add_argument("--summary", default="outputs/sdc_sweep/selection.json")
     parser.add_argument("--psnr-tolerance", type=float, default=0.75)
+    parser.add_argument("--min-reduction", type=float, default=0.25)
     args = parser.parse_args()
 
     adc = load_run(Path(args.adc_output))
@@ -54,8 +55,14 @@ def main() -> None:
     if not rows:
         raise SystemExit(f"No SDC candidate outputs found under {args.candidates_dir}")
 
-    rows.sort(key=lambda row: row["score"], reverse=True)
-    selected = rows[0]
+    feasible = [
+        row
+        for row in rows
+        if row["point_reduction_vs_adc"] >= args.min_reduction and (adc["psnr"] - row["psnr"]) <= args.psnr_tolerance
+    ]
+    candidate_pool = feasible if feasible else rows
+    candidate_pool.sort(key=lambda row: row["score"], reverse=True)
+    selected = candidate_pool[0]
     selected_path = Path(selected["path"])
     output_path = Path(args.selected_output)
     if output_path.exists():
@@ -64,7 +71,16 @@ def main() -> None:
 
     summary_path = Path(args.summary)
     summary_path.parent.mkdir(parents=True, exist_ok=True)
-    summary = {"adc": adc, "selected": selected, "candidates": rows}
+    summary = {
+        "adc": adc,
+        "selected": selected,
+        "selection_constraints": {
+            "psnr_tolerance": args.psnr_tolerance,
+            "min_reduction": args.min_reduction,
+            "feasible_candidates": len(feasible),
+        },
+        "candidates": rows,
+    }
     summary_path.write_text(json.dumps(summary, indent=2))
     print(json.dumps(summary, indent=2))
 
