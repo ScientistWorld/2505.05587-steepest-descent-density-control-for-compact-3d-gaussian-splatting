@@ -1,5 +1,5 @@
-action: done
+action: submit
 gpus: 0
 test: false
 milestone: core_claim
-notes: "Packager audit found no external artifacts required; scripts/download.sh is self-contained for the tracked procedural benchmark and validation passes."
+notes: "Run scripts/reproduce_plus.sh to regenerate default and seed-13 SteepGS/ADC scores with the complete metric contract; validate with python validate.py --compare. Targeting core_claim_plus if the second scene also supports the compactness claim."
