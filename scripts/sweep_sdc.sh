@@ -8,8 +8,8 @@ cd /home/user
 rm -rf outputs/sdc_sweep outputs/steepgs2d
 mkdir -p outputs/sdc_sweep
 
-thresholds=(-1e-6 -2.5e-6 -5e-6 -1e-5 -1.5e-5 -2.5e-5 -5e-5)
-max_points=(72 96 120)
+thresholds=(-1e-6 -2.5e-6 -5e-6 -7.5e-6 -1e-5 -1.25e-5 -1.5e-5 -2e-5 -2.5e-5 -5e-5)
+max_points=(72 96 108 120)
 
 for max_point in "${max_points[@]}"; do
   for threshold in "${thresholds[@]}"; do
