@@ -22,6 +22,7 @@
 - Reproduced the central claim on the scaled benchmark: SteepGS achieved PSNR 37.707 and SSIM 0.9958 with 38 raw primitives, versus ADC PSNR 40.325 and SSIM 0.9975 with 144 raw primitives.
 - The resulting `point_reduction_vs_adc` is 0.736, exceeding the paper's reported 0.519 reduction while preserving high reconstruction quality.
 - Promoted the selected threshold into the default method path so `scripts/reproduce.sh` can recreate the core-claim run directly.
+- Direct verification job `d156a838-cbf` reran `scripts/reproduce.sh` successfully and regenerated the same core-claim scores.
 
 ## Stop Justification
 - Not stopped.

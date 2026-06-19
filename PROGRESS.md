@@ -25,10 +25,10 @@
 - Selected SteepGS result: PSNR 37.707, SSIM 0.9958, L1 0.0086, 38 raw points, 26 splits.
 - In paper-normalized score units, SteepGS uses 0.881 points/FLOPs proxy versus ADC's 3.339, with `point_reduction_vs_adc = 0.736`.
 - This reaches `core_claim`: SDC preserves high reconstruction quality while substantially reducing Gaussian primitives.
+- Job `d156a838-cbf` verified the direct `scripts/reproduce.sh` path and regenerated the same scores with `python validate.py` passing.
 
 ## Remaining
 
-- Verify the direct `scripts/reproduce.sh` path after promoting the compact threshold.
 - Higher milestones would require adding additional scenes/seeds or a closer full-3DGS implementation.
 
 ## Issues

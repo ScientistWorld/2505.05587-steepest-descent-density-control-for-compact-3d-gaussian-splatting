@@ -65,8 +65,8 @@ def steepest_densify(
     if selected_idx.numel() == 0:
         return {
             "splits": 0,
-            "min_lambda": float(lambda_min.min()),
-            "min_mean_grad_norm": float(mean_grad_norm.min()),
+            "min_lambda": float(lambda_min.min().detach()),
+            "min_mean_grad_norm": float(mean_grad_norm.min().detach()),
             "eligible": int(eligible.sum()),
         }
 
@@ -81,8 +81,8 @@ def steepest_densify(
     model.replace_points(keep, new_xy, new_log_scale, new_opacity_logit, new_color_logit)
     return {
         "splits": int(selected_idx.numel()),
-        "min_lambda": float(lambda_min.min()),
-        "min_mean_grad_norm": float(mean_grad_norm.min()),
+        "min_lambda": float(lambda_min.min().detach()),
+        "min_mean_grad_norm": float(mean_grad_norm.min().detach()),
         "eligible": int(eligible.sum()),
     }
 
