@@ -26,6 +26,7 @@
 - In paper-normalized score units, SteepGS uses 0.881 points/FLOPs proxy versus ADC's 3.339, with `point_reduction_vs_adc = 0.736`.
 - This reaches `core_claim`: SDC preserves high reconstruction quality while substantially reducing Gaussian primitives.
 - Job `d156a838-cbf` verified the direct `scripts/reproduce.sh` path and regenerated the same scores with `python validate.py` passing.
+- Continuation audit on 2026-06-19 17:01 verified that the implementation is a faithful scaled SDC reproduction rather than a surrogate, that `eval/` is method-independent, and that `scripts/evaluate.sh` plus `python validate.py --compare` pass on the saved artifacts.
 
 ## Remaining
 
@@ -39,6 +40,7 @@
 - First runtime issue: the default SDC threshold was too permissive on the scaled scene, causing the proposed method to densify to the same cap as ADC. The next job sweeps stricter negative-eigenvalue thresholds and selects from saved artifacts only.
 - The compact selected SDC run trades about 2.62 dB PSNR relative to the local ADC baseline, but remains far above the paper-scale PSNR reference and retains very high SSIM on this deterministic benchmark.
 - Direct verification job `3beaea5e-e10` failed before running SteepGS because `--split-threshold -5e-05` was parsed as a missing argument by `argparse`. Fixed by using `--split-threshold=-5e-05`.
+- During the continuation audit, `scripts/evaluate.sh` initially failed in the login Python because `numpy` was absent. `numpy` is already declared in `environment/setup.sh`; installing that same dependency with `uv pip install --system numpy` made the standalone audit path pass without changing reproduction code.
 
 ## Deviations from Paper
 

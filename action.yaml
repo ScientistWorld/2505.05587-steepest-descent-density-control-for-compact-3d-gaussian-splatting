@@ -5,4 +5,4 @@ action: done
 gpus: 0
 test: false
 milestone: core_claim
-notes: "Core claim reproduced and packaged: SteepGS SDC reduces Gaussian primitives by 73.6% versus ADC on the deterministic scaled splatting benchmark while preserving high reconstruction quality. Validation and compare checks pass."
+notes: "Continuation audit restored core_claim: implementation contains the actual SDC splitting-matrix/eigenvector/opacity-halving algorithm, eval is method-independent, scripts/evaluate.sh and python validate.py --compare pass on saved artifacts."
