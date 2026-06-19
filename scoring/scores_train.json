@@ -1,0 +1,37 @@
+{
+  "metadata": {
+    "slice": "train",
+    "split_seed": 250505587
+  },
+  "experiments": {
+    "compact_synthetic_splatting": {
+      "slice": "train",
+      "results": {
+        "adc2d_baseline": {
+          "psnr": 39.75457014625687,
+          "ssim": 0.9972444174669134,
+          "l1_error": 0.006334151757788256,
+          "tail_l1_p95": 0.021972702785084636,
+          "bright_l1_error": 0.007729165866066978,
+          "channel_bias_l1": 0.001861882503475505,
+          "num_points": 3.339,
+          "flops_proxy": 3.339,
+          "splits": 132,
+          "point_reduction_vs_adc": 0.0
+        },
+        "steepgs2d": {
+          "psnr": 40.64118692579363,
+          "ssim": 0.9977014090560219,
+          "l1_error": 0.006005661974099984,
+          "tail_l1_p95": 0.018284679080049177,
+          "bright_l1_error": 0.007015448365791599,
+          "channel_bias_l1": 0.0019120084860734848,
+          "num_points": 1.6695,
+          "flops_proxy": 1.6695,
+          "splits": 60,
+          "point_reduction_vs_adc": 0.5
+        }
+      }
+    }
+  }
+}
