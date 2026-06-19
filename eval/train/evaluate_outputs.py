@@ -14,6 +14,8 @@ from pathlib import Path
 
 import numpy as np
 
+from data.synthetic_gaussian_scene import make_scene
+
 
 EXPERIMENT = "compact_synthetic_splatting"
 PAPER_ADC_POINTS_M = 3.339
@@ -138,9 +140,10 @@ def load_run(path: Path) -> tuple[dict[str, float], dict[str, int]]:
     if not has_output_artifact(path):
         raise FileNotFoundError(f"Missing predictions.npz or metrics.json in {path}")
 
+    metadata = json.loads((path / "metrics.json").read_text())
     with np.load(path / "predictions.npz") as arr:
         pred = sample_rows(arr["pred"])
-        target = sample_rows(arr["target"])
+    target = sample_rows(load_expected_target(metadata, pred.shape[0]))
     if pred.shape != target.shape:
         raise ValueError(f"Prediction and target shape mismatch in {path}: {pred.shape} != {target.shape}")
 
@@ -148,7 +151,6 @@ def load_run(path: Path) -> tuple[dict[str, float], dict[str, int]]:
     pred_slice = pred[indices]
     target_slice = target[indices]
 
-    metadata = json.loads((path / "metrics.json").read_text())
     raw_metrics = metadata.get("metrics", metadata)
     metrics = {
         "psnr": psnr(pred_slice, target_slice),
@@ -166,6 +168,21 @@ def load_run(path: Path) -> tuple[dict[str, float], dict[str, int]]:
         "scored_samples": int(indices.shape[0]),
     }
     return metrics, slice_info
+
+
+def load_expected_target(metadata: dict, n_test: int) -> np.ndarray:
+    args = metadata.get("args", {})
+    scene = make_scene(
+        seed=int(args.get("seed", 7)),
+        image_size=int(args.get("image_size", 96)),
+        n_train=int(args.get("n_train", 4096)),
+        n_test=int(args.get("n_test", n_test)),
+        device="cpu",
+    )
+    target = scene.test_rgb.cpu().numpy()
+    if target.shape[0] != n_test:
+        raise ValueError(f"Prediction sample count {n_test} does not match benchmark target count {target.shape[0]}")
+    return target
 
 
 def normalize_cost_metrics(results: "OrderedDict[str, dict[str, float]]") -> None:

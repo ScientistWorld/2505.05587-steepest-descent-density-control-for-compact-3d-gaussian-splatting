@@ -9,6 +9,8 @@ from pathlib import Path
 
 import numpy as np
 
+from data.synthetic_gaussian_scene import make_scene
+
 PAPER_ADC_POINTS_M = 3.339
 
 
@@ -54,10 +56,10 @@ def load_run(path: Path) -> dict[str, float]:
     metrics_path = path / "metrics.json"
     if not predictions_path.exists() or not metrics_path.exists():
         raise FileNotFoundError(f"Expected predictions.npz and metrics.json in {path}")
+    metadata = json.loads(metrics_path.read_text())
     with np.load(path / "predictions.npz") as arr:
         pred = arr["pred"]
-        target = arr["target"]
-    metadata = json.loads((path / "metrics.json").read_text())
+    target = load_expected_target(metadata, pred.shape)
     metrics = metadata["metrics"]
     return {
         "psnr": psnr(pred, target),
@@ -70,6 +72,21 @@ def load_run(path: Path) -> dict[str, float]:
         "flops_proxy": int(metrics["flops_proxy"]),
         "splits": int(metrics["splits"]),
     }
+
+
+def load_expected_target(metadata: dict, pred_shape: tuple[int, ...]) -> np.ndarray:
+    args = metadata.get("args", {})
+    scene = make_scene(
+        seed=int(args.get("seed", 7)),
+        image_size=int(args.get("image_size", 96)),
+        n_train=int(args.get("n_train", 4096)),
+        n_test=int(args.get("n_test", pred_shape[0] if pred_shape else 4096)),
+        device="cpu",
+    )
+    target = scene.test_rgb.cpu().numpy()
+    if target.shape != pred_shape:
+        raise ValueError(f"Prediction shape {pred_shape} does not match benchmark target shape {target.shape}")
+    return target
 
 
 def has_output_artifacts(path: Path) -> bool:
@@ -133,7 +150,7 @@ def main() -> None:
         help="Additional output to evaluate, as NAME=PATH or PATH. May be repeated.",
     )
     parser.add_argument("--scores", default="scoring/scores.json")
-    parser.add_argument("--experiment-name", default="compact_synthetic_splatting_seed7")
+    parser.add_argument("--experiment-name", default="compact_synthetic_splatting")
     parser.add_argument("--append", action="store_true", help="Merge this experiment into an existing scores file.")
     args = parser.parse_args()
 

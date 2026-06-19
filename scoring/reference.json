@@ -1,95 +1,9 @@
 {
   "experiments": {
-    "compact_synthetic_splatting_seed7": {
-      "description": "Compact Gaussian splatting benchmark, deterministic scene seed 7, inspired by Table 1: preserve reconstruction quality while reducing Gaussian point count.",
+    "compact_synthetic_splatting": {
+      "description": "Compact Gaussian splatting benchmark inspired by Table 1: preserve reconstruction quality while reducing Gaussian point count.",
       "notes": "Paper-reported Table 1 values are used for normalized point count, PSNR, SSIM, and the perceptual-error slot. The lightweight local evaluator computes mean absolute color error instead of LPIPS and adds tail-error, bright-region, channel-bias, FLOPs-proxy, and split-count constraints so future agents are scored on a dependency-free synthetic benchmark. Those added reference fields are local schema anchors, not additional paper-reported numbers.",
-      "weight": 0.5,
-      "primary_metric": "psnr",
-      "metrics": {
-        "psnr": {
-          "higher_is_better": true,
-          "coefficient": 1.0,
-          "description": "Global reconstruction fidelity on held-out sample colors."
-        },
-        "ssim": {
-          "higher_is_better": true,
-          "coefficient": 0.3,
-          "description": "Global structural similarity proxy for the reconstructed color field."
-        },
-        "l1_error": {
-          "higher_is_better": false,
-          "coefficient": -0.4,
-          "description": "Mean absolute color error across held-out samples."
-        },
-        "tail_l1_p95": {
-          "higher_is_better": false,
-          "coefficient": -0.25,
-          "description": "Ninety-fifth percentile per-sample absolute color error, penalizing localized failures hidden by averages."
-        },
-        "bright_l1_error": {
-          "higher_is_better": false,
-          "coefficient": -0.2,
-          "description": "Mean absolute error on the brightest quartile of target samples, which catches methods that mostly fit easy low-intensity regions."
-        },
-        "channel_bias_l1": {
-          "higher_is_better": false,
-          "coefficient": -0.15,
-          "description": "Absolute mean residual across color channels, penalizing systematic color bias."
-        },
-        "num_points": {
-          "higher_is_better": false,
-          "coefficient": -0.8,
-          "description": "Normalized Gaussian primitive count, the main compactness constraint."
-        },
-        "point_reduction_vs_adc": {
-          "higher_is_better": true,
-          "coefficient": 0.8,
-          "description": "Fractional primitive reduction relative to the ADC baseline under the same output contract."
-        },
-        "flops_proxy": {
-          "higher_is_better": false,
-          "coefficient": -0.2,
-          "description": "Machine-independent rendering-cost proxy proportional to primitives times evaluated samples."
-        },
-        "splits": {
-          "higher_is_better": false,
-          "coefficient": -0.1,
-          "description": "Total densification split count, discouraging unnecessary growth operations."
-        }
-      },
-      "results": {
-        "adc2d_baseline": {
-          "type": "baseline",
-          "psnr": 29.037,
-          "ssim": 0.872,
-          "l1_error": 0.183,
-          "tail_l1_p95": 0.421,
-          "bright_l1_error": 0.238,
-          "channel_bias_l1": 0.035,
-          "num_points": 3.339,
-          "point_reduction_vs_adc": 0.0,
-          "flops_proxy": 3.339,
-          "splits": 0.0
-        },
-        "steepgs2d": {
-          "type": "proposed",
-          "psnr": 28.734,
-          "ssim": 0.857,
-          "l1_error": 0.211,
-          "tail_l1_p95": 0.469,
-          "bright_l1_error": 0.271,
-          "channel_bias_l1": 0.043,
-          "num_points": 1.606,
-          "point_reduction_vs_adc": 0.519,
-          "flops_proxy": 1.606,
-          "splits": 0.0
-        }
-      }
-    },
-    "compact_synthetic_splatting_seed13": {
-      "description": "Compact Gaussian splatting benchmark, deterministic scene seed 13, inspired by Table 1: preserve reconstruction quality while reducing Gaussian point count.",
-      "notes": "Second deterministic local setting using the same paper-normalized Table 1 schema as seed 7. Paper-reported fields remain the Table 1 anchors; extra dependency-free local metrics are schema anchors for this gym.",
-      "weight": 0.5,
+      "weight": 1.0,
       "primary_metric": "psnr",
       "metrics": {
         "psnr": {

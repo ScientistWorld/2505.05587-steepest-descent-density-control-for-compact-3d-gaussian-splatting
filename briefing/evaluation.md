@@ -19,4 +19,4 @@ The reference target is a quality-versus-compactness comparison: a reconstructio
 
 ## Evaluation Protocol
 
-Run a method so that it writes predictions and metadata under `outputs/`, then run `scripts/evaluate.sh`. The evaluator reads saved artifacts and writes `scoring/scores.json`; it does not import method implementations or rerun training.
+Run a method so that it writes predictions and metadata under `outputs/`, then run `scripts/evaluate.sh`. The evaluator reads saved prediction artifacts, reconstructs the deterministic benchmark targets from `data/`, and writes `scoring/scores.json`; it does not import method implementations or rerun training.
