@@ -18,4 +18,4 @@
 - `python validate.py --compare` passes on the resulting `scoring/scores.json`.
 
 ## Stop Justification
-- Stopped at `core_claim`: the reusable environment now demonstrates the paper's core quality-compactness claim on the scaled deterministic 2D splatting benchmark. Higher milestones would require additional scenes/seeds or a closer full 3DGS reproduction.
+- Completed at milestone `core_claim`.
