@@ -1,8 +1,8 @@
 # IMPORTANT: Once you set action to 'submit' or 'done', STOP immediately.
 # Do NOT sleep, poll, or wait for jobs. The system reads this file
 # only after your turn ends. Sleeping blocks the entire pipeline.
-action: submit
+action: done
 gpus: 0
 test: false
-milestone: method_runs
-notes: "Run corrected ADC baseline plus SDC threshold/point-cap sweep; select and evaluate a candidate to test the core compactness-quality claim."
+milestone: core_claim
+notes: "Reproduced the core quality-compactness claim on the scaled SteepGS benchmark: selected SDC reached PSNR 40.593 with 72 points versus ADC PSNR 39.458 with 144 points; validate.py --compare passes."
