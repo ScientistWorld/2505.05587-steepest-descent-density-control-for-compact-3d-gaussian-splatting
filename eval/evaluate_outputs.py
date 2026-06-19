@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections import OrderedDict
 from pathlib import Path
 
 import numpy as np
@@ -49,6 +50,10 @@ def channel_bias_l1(pred: np.ndarray, target: np.ndarray) -> float:
 
 
 def load_run(path: Path) -> dict[str, float]:
+    predictions_path = path / "predictions.npz"
+    metrics_path = path / "metrics.json"
+    if not predictions_path.exists() or not metrics_path.exists():
+        raise FileNotFoundError(f"Expected predictions.npz and metrics.json in {path}")
     with np.load(path / "predictions.npz") as arr:
         pred = arr["pred"]
         target = arr["target"]
@@ -67,30 +72,79 @@ def load_run(path: Path) -> dict[str, float]:
     }
 
 
+def has_output_artifacts(path: Path) -> bool:
+    return (path / "predictions.npz").exists() and (path / "metrics.json").exists()
+
+
+def default_method_name(path: Path) -> str:
+    if path.name == "adc2d":
+        return "adc2d_baseline"
+    return path.name
+
+
+def parse_method_output(spec: str) -> tuple[str, Path]:
+    if "=" in spec:
+        name, path = spec.split("=", 1)
+        name = name.strip()
+        if not name:
+            raise ValueError(f"Empty method name in --method-output {spec!r}")
+        return name, Path(path)
+    path = Path(spec)
+    return default_method_name(path), path
+
+
+def collect_outputs(args: argparse.Namespace) -> OrderedDict[str, Path]:
+    outputs: OrderedDict[str, Path] = OrderedDict()
+    for path_text in (args.adc_output, args.steepgs_output):
+        path = Path(path_text)
+        if has_output_artifacts(path):
+            outputs[default_method_name(path)] = path
+    for spec in args.method_output:
+        name, path = parse_method_output(spec)
+        outputs[name] = path
+    if not outputs:
+        raise SystemExit(
+            "No evaluable outputs found. Provide --method-output NAME=PATH, "
+            "or run scripts/method.sh/scripts/baseline.sh first."
+        )
+    return outputs
+
+
+def normalize_cost_metrics(results: OrderedDict[str, dict[str, float]]) -> None:
+    anchor = results.get("adc2d_baseline", next(iter(results.values())))
+    anchor_points = max(anchor["num_points"], 1)
+    anchor_flops = max(anchor["flops_proxy"], 1)
+    for run in results.values():
+        run["point_reduction_vs_adc"] = float(1.0 - run["num_points"] / anchor_points)
+        run["num_points"] = float(run["num_points"] / anchor_points * PAPER_ADC_POINTS_M)
+        run["flops_proxy"] = float(run["flops_proxy"] / anchor_flops * PAPER_ADC_POINTS_M)
+    if "adc2d_baseline" in results:
+        results["adc2d_baseline"]["point_reduction_vs_adc"] = 0.0
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--steepgs-output", default="outputs/steepgs2d")
     parser.add_argument("--adc-output", default="outputs/adc2d")
+    parser.add_argument(
+        "--method-output",
+        action="append",
+        default=[],
+        help="Additional output to evaluate, as NAME=PATH or PATH. May be repeated.",
+    )
     parser.add_argument("--scores", default="scoring/scores.json")
-    parser.add_argument("--experiment-name", default="compact_synthetic_splatting")
+    parser.add_argument("--experiment-name", default="compact_synthetic_splatting_seed7")
     parser.add_argument("--append", action="store_true", help="Merge this experiment into an existing scores file.")
     args = parser.parse_args()
 
-    steep = load_run(Path(args.steepgs_output))
-    adc = load_run(Path(args.adc_output))
-    adc_raw_points = max(adc["num_points"], 1)
-    adc_raw_flops = max(adc["flops_proxy"], 1)
-    steep["point_reduction_vs_adc"] = float(1.0 - steep["num_points"] / adc_raw_points)
-    adc["point_reduction_vs_adc"] = 0.0
-    for run in (adc, steep):
-        run["num_points"] = float(run["num_points"] / adc_raw_points * PAPER_ADC_POINTS_M)
-        run["flops_proxy"] = float(run["flops_proxy"] / adc_raw_flops * PAPER_ADC_POINTS_M)
+    output_paths = collect_outputs(args)
+    results: OrderedDict[str, dict[str, float]] = OrderedDict(
+        (method_name, load_run(path)) for method_name, path in output_paths.items()
+    )
+    normalize_cost_metrics(results)
     experiment_scores = {
         args.experiment_name: {
-            "results": {
-                "adc2d_baseline": adc,
-                "steepgs2d": steep,
-            }
+            "results": results
         }
     }
     scores_path = Path(args.scores)

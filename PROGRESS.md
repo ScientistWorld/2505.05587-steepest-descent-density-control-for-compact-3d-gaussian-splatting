@@ -16,6 +16,7 @@
 - `scripts/reproduce.sh` runs ADC, sweeps compact SDC settings, selects a saved candidate from artifacts, and evaluates the selected outputs.
 - The corrected reproduction reaches `core_claim` on the scaled benchmark.
 - The standard evaluator now emits every metric declared in `scoring/reference.json`, including tail error, bright-region error, and channel-bias constraints.
+- The standard evaluator accepts additional `--method-output NAME=PATH` artifacts while preserving the ADC/SteepGS defaults used by the current reproduction.
 
 ## Results
 
@@ -36,10 +37,12 @@
 - This reaches `core_claim`: the selected SDC run preserves/improves reconstruction quality while using 50% fewer primitives than the local ADC baseline.
 - `python validate.py --compare` passes with `scoring/scores.json`.
 - Final verification removed an unscored second-seed target from the public scoring contract so the gym only advertises experiments present in `scoring/scores.json`.
+- Current turn prepares a `core_claim_plus` attempt by adding a second deterministic scene seed to the standard `scripts/reproduce.sh` and `scoring/reference.json` contract. The milestone remains `core_claim` until that submitted job completes and produces valid scores for both settings.
+- Current turn also made the shell entry points executable and removed previously tracked generated trajectory logs from the git index.
 
 ## Remaining
 
-- Higher milestones would require additional validated scenes/seeds or a closer full-3DGS implementation.
+- Higher milestones require the submitted two-seed reproduction to pass, additional validated scenes/seeds beyond that, or a closer full-3DGS implementation.
 
 ## Issues
 

@@ -1,3 +1,5 @@
-action: done
+action: submit
+gpus: 0
+test: false
 milestone: core_claim
-notes: "Final verification passed after cleaning unscored seed-13 targets; workspace is ready as a core-claim synthetic Gaussian-splatting gym."
+notes: "Run CPU two-seed SteepGS/SDC reproduction and validate scoring for the core_claim_plus attempt."
