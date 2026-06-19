@@ -42,6 +42,27 @@ def l1_error(pred: np.ndarray, target: np.ndarray) -> float:
     return float(np.mean(np.abs(pred - target)))
 
 
+def row_l1_errors(pred: np.ndarray, target: np.ndarray) -> np.ndarray:
+    return np.mean(np.abs(pred - target), axis=1)
+
+
+def tail_l1_p95(pred: np.ndarray, target: np.ndarray) -> float:
+    return float(np.quantile(row_l1_errors(pred, target), 0.95))
+
+
+def bright_l1_error(pred: np.ndarray, target: np.ndarray) -> float:
+    intensity = np.mean(target, axis=1)
+    cutoff = np.quantile(intensity, 0.75)
+    mask = intensity >= cutoff
+    if not np.any(mask):
+        return l1_error(pred, target)
+    return l1_error(pred[mask], target[mask])
+
+
+def channel_bias_l1(pred: np.ndarray, target: np.ndarray) -> float:
+    return float(np.mean(np.abs(np.mean(pred - target, axis=0))))
+
+
 def method_name_for_path(path: Path) -> str:
     if path.name == "adc2d":
         return "adc2d_baseline"
@@ -133,6 +154,9 @@ def load_run(path: Path) -> tuple[dict[str, float], dict[str, int]]:
         "psnr": psnr(pred_slice, target_slice),
         "ssim": ssim_global(pred_slice, target_slice),
         "l1_error": l1_error(pred_slice, target_slice),
+        "tail_l1_p95": tail_l1_p95(pred_slice, target_slice),
+        "bright_l1_error": bright_l1_error(pred_slice, target_slice),
+        "channel_bias_l1": channel_bias_l1(pred_slice, target_slice),
         "num_points": int(raw_metrics["num_points"]),
         "flops_proxy": int(raw_metrics["flops_proxy"]),
         "splits": int(raw_metrics.get("splits", 0)),
