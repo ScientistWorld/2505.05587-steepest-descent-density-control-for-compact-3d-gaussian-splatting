@@ -1,5 +1,5 @@
-action: submit
+action: done
 gpus: 0
 test: false
 milestone: core_claim
-notes: "CPU split scoring job: run evaluate_train.sh and evaluate_test.sh against existing outputs, then validate generated scores."
+notes: "Sample-level train/test split over saved predictions; 20 train metrics and 20 test metrics across adc2d_baseline and steepgs2d. SteepGS keeps the benefit/constraint advantage on both slices: PSNR 40.64 train vs 40.54 test, point reduction 0.50 on both; no nulls or byte-identical train/test score files. Caveat: validator prints non-fatal method-output heuristic warnings because deterministic split uses np.random.default_rng, but evaluators read outputs/*/predictions.npz and metrics.json."
