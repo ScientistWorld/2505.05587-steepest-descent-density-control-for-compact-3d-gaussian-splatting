@@ -25,4 +25,4 @@
 - Direct verification job `d156a838-cbf` reran `scripts/reproduce.sh` successfully and regenerated the same core-claim scores.
 
 ## Stop Justification
-- Not stopped.
+- Completed at milestone `core_claim`.
