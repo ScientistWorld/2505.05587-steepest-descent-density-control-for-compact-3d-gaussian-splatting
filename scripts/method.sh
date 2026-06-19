@@ -13,4 +13,5 @@ cd /home/user
 python -m method.sdc2d.steepgs2d \
   --output outputs/steepgs2d \
   --device cpu \
+  --split-threshold -5e-05 \
   "$@"

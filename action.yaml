@@ -4,5 +4,5 @@
 action: submit
 gpus: 0
 test: true
-milestone: method_runs
-notes: "Run an SDC split-threshold sweep on the scaled Gaussian benchmark; select the best compact artifact and evaluate for core-claim evidence."
+milestone: core_claim
+notes: "Verify the direct scripts/reproduce.sh path after promoting the compact SDC threshold selected by the sweep."

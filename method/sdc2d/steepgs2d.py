@@ -176,7 +176,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--densify-from", type=int, default=150)
     p.add_argument("--densify-interval", type=int, default=75)
     p.add_argument("--epsilon", type=float, default=0.045)
-    p.add_argument("--split-threshold", type=float, default=-1e-6)
+    p.add_argument("--split-threshold", type=float, default=-5e-5)
     p.add_argument("--grad-threshold", type=float, default=0.035)
     return p
 
