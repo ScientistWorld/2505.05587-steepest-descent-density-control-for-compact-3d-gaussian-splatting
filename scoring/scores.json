@@ -1,0 +1,26 @@
+{
+  "experiments": {
+    "compact_synthetic_splatting": {
+      "results": {
+        "adc2d_baseline": {
+          "psnr": 40.325469970703125,
+          "ssim": 0.9975487589836121,
+          "l1_error": 0.006021607667207718,
+          "num_points": 3.339,
+          "flops_proxy": 3.339,
+          "splits": 132,
+          "point_reduction_vs_adc": 0.0
+        },
+        "steepgs2d": {
+          "psnr": 39.99541091918945,
+          "ssim": 0.9974793791770935,
+          "l1_error": 0.0062409364618361,
+          "num_points": 3.339,
+          "flops_proxy": 3.339,
+          "splits": 132,
+          "point_reduction_vs_adc": 0.0
+        }
+      }
+    }
+  }
+}
