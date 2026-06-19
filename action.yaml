@@ -5,4 +5,4 @@ action: submit
 gpus: 0
 test: true
 milestone: core_claim
-notes: "Verify the direct scripts/reproduce.sh path after promoting the compact SDC threshold selected by the sweep."
+notes: "Retry direct scripts/reproduce.sh verification after fixing negative split-threshold CLI parsing and cleaning stale outputs."

@@ -38,6 +38,7 @@
 - Audit fix applied: baseline no longer imports the proposed method module, and score units no longer compare raw 2D primitive counts directly against million-point paper results.
 - First runtime issue: the default SDC threshold was too permissive on the scaled scene, causing the proposed method to densify to the same cap as ADC. The next job sweeps stricter negative-eigenvalue thresholds and selects from saved artifacts only.
 - The compact selected SDC run trades about 2.62 dB PSNR relative to the local ADC baseline, but remains far above the paper-scale PSNR reference and retains very high SSIM on this deterministic benchmark.
+- Direct verification job `3beaea5e-e10` failed before running SteepGS because `--split-threshold -5e-05` was parsed as a missing argument by `argparse`. Fixed by using `--split-threshold=-5e-05`.
 
 ## Deviations from Paper
 
