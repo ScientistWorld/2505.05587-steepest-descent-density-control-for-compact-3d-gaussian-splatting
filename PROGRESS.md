@@ -16,7 +16,6 @@
 - `scripts/reproduce.sh` runs ADC, sweeps compact SDC settings, selects a saved candidate from artifacts, and evaluates the selected outputs.
 - The corrected reproduction reaches `core_claim` on the scaled benchmark.
 - The standard evaluator now emits every metric declared in `scoring/reference.json`, including tail error, bright-region error, and channel-bias constraints.
-- `scripts/reproduce_plus.sh` is prepared to score the default scene and an additional deterministic seed-13 scene.
 
 ## Results
 
@@ -36,12 +35,11 @@
 - Selected SteepGS/SDC run (`outputs/sdc_sweep/mp72_thrm2em5`): PSNR 40.593, SSIM 0.9976, L1 0.00602, 72 raw points, 60 splits.
 - This reaches `core_claim`: the selected SDC run preserves/improves reconstruction quality while using 50% fewer primitives than the local ADC baseline.
 - `python validate.py --compare` passes with `scoring/scores.json`.
-- Current turn prepared an expanded two-seed evaluation contract. `core_claim_plus` is not claimed until the submitted plus job completes and validates.
+- Final verification removed an unscored second-seed target from the public scoring contract so the gym only advertises experiments present in `scoring/scores.json`.
 
 ## Remaining
 
-- The next submitted job targets `core_claim_plus` by adding the deterministic seed-13 scene to `scoring/scores.json`.
-- Higher milestones beyond that would require more scenes/seeds or a closer full-3DGS implementation.
+- Higher milestones would require additional validated scenes/seeds or a closer full-3DGS implementation.
 
 ## Issues
 

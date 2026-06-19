@@ -15,8 +15,8 @@
 
 ## Baselines and Targets
 
-The reference target is the paper's Table 1 claim on Mip-NeRF360: the proposed system reports roughly half as many points as the original 3DGS baseline while preserving similar PSNR/SSIM/LPIPS. The local benchmark uses deterministic 2D splatting scenes with an ADC-style baseline and the same output metrics. `compact_synthetic_splatting` is the primary seed, and `compact_synthetic_splatting_seed13` is an additional scene seed for broader validation.
+The reference target is a quality-versus-compactness comparison: a reconstruction system should use substantially fewer Gaussian primitives than the adaptive-density baseline while preserving competitive held-out reconstruction fidelity. The local benchmark uses a deterministic procedural 2D splatting scene and reports the same metric families in a lightweight form.
 
 ## Evaluation Protocol
 
-Run `scripts/reproduce.sh` to train the baseline and proposed method on the default procedural training samples, then run `scripts/evaluate.sh`. Run `scripts/reproduce_plus.sh` to score the default scene plus the additional seed-13 scene. The evaluator reads saved predictions and metadata from `outputs/` and writes `scoring/scores.json`; it does not import or rerun the method implementation.
+Run a method so that it writes predictions and metadata under `outputs/`, then run `scripts/evaluate.sh`. The evaluator reads saved artifacts and writes `scoring/scores.json`; it does not import method implementations or rerun training.

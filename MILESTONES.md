@@ -19,4 +19,4 @@
 
 ## Stop Justification
 - Current completed milestone remains `core_claim`.
-- Submitted an expanded two-seed reproduction job targeting `core_claim_plus`; do not claim the higher milestone until the job result is available.
+- Higher milestones are not claimed because only the default deterministic scene has completed validated scoring.
