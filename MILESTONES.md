@@ -18,4 +18,5 @@
 - `python validate.py --compare` passes on the resulting `scoring/scores.json`.
 
 ## Stop Justification
-- Completed at milestone `core_claim`.
+- Current completed milestone remains `core_claim`.
+- Submitted an expanded two-seed reproduction job targeting `core_claim_plus`; do not claim the higher milestone until the job result is available.

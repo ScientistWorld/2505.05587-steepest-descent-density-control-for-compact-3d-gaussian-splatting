@@ -32,6 +32,22 @@ def l1_error(pred: np.ndarray, target: np.ndarray) -> float:
     return float(np.mean(np.abs(pred - target)))
 
 
+def tail_l1_p95(pred: np.ndarray, target: np.ndarray) -> float:
+    per_sample = np.mean(np.abs(pred - target), axis=-1)
+    return float(np.percentile(per_sample, 95))
+
+
+def bright_l1_error(pred: np.ndarray, target: np.ndarray) -> float:
+    brightness = np.mean(target, axis=-1)
+    cutoff = np.percentile(brightness, 75)
+    mask = brightness >= cutoff
+    return float(np.mean(np.abs(pred[mask] - target[mask])))
+
+
+def channel_bias_l1(pred: np.ndarray, target: np.ndarray) -> float:
+    return float(np.mean(np.abs(np.mean(pred - target, axis=0))))
+
+
 def load_run(path: Path) -> dict[str, float]:
     with np.load(path / "predictions.npz") as arr:
         pred = arr["pred"]
@@ -42,6 +58,9 @@ def load_run(path: Path) -> dict[str, float]:
         "psnr": psnr(pred, target),
         "ssim": ssim_global(pred, target),
         "l1_error": l1_error(pred, target),
+        "tail_l1_p95": tail_l1_p95(pred, target),
+        "bright_l1_error": bright_l1_error(pred, target),
+        "channel_bias_l1": channel_bias_l1(pred, target),
         "num_points": int(metrics["num_points"]),
         "flops_proxy": int(metrics["flops_proxy"]),
         "splits": int(metrics["splits"]),
@@ -53,6 +72,8 @@ def main() -> None:
     parser.add_argument("--steepgs-output", default="outputs/steepgs2d")
     parser.add_argument("--adc-output", default="outputs/adc2d")
     parser.add_argument("--scores", default="scoring/scores.json")
+    parser.add_argument("--experiment-name", default="compact_synthetic_splatting")
+    parser.add_argument("--append", action="store_true", help="Merge this experiment into an existing scores file.")
     args = parser.parse_args()
 
     steep = load_run(Path(args.steepgs_output))
@@ -64,16 +85,22 @@ def main() -> None:
     for run in (adc, steep):
         run["num_points"] = float(run["num_points"] / adc_raw_points * PAPER_ADC_POINTS_M)
         run["flops_proxy"] = float(run["flops_proxy"] / adc_raw_flops * PAPER_ADC_POINTS_M)
-    scores = {
-        "compact_synthetic_splatting": {
+    experiment_scores = {
+        args.experiment_name: {
             "results": {
                 "adc2d_baseline": adc,
                 "steepgs2d": steep,
             }
         }
     }
-    Path(args.scores).write_text(json.dumps({"experiments": scores}, indent=2))
-    print(json.dumps(scores, indent=2))
+    scores_path = Path(args.scores)
+    if args.append and scores_path.exists():
+        scores = json.loads(scores_path.read_text())
+        scores.setdefault("experiments", {}).update(experiment_scores)
+    else:
+        scores = {"experiments": experiment_scores}
+    scores_path.write_text(json.dumps(scores, indent=2))
+    print(json.dumps(experiment_scores, indent=2))
 
 
 if __name__ == "__main__":
