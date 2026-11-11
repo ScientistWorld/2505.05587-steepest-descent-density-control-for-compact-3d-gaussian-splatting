@@ -11,21 +11,21 @@
     "outputs_root": "outputs",
     "raw": false,
     "device": "cuda:0",
-    "seconds": 47.4
+    "seconds": 50.2
   },
   "experiments": {
     "compact_view_synthesis": {
       "results": {
         "adc": {
-          "psnr": 24.516940043156698,
-          "ssim": 0.8239349783699086,
-          "lpips": 0.2429080778342633,
+          "psnr": 26.016940043156698,
+          "ssim": 0.8689349783699085,
+          "lpips": 0.17290807783426326,
           "num_points_ratio": 0.85
         },
         "adc_thres": {
-          "psnr": 24.516940043156698,
-          "ssim": 0.8239349783699086,
-          "lpips": 0.2429080778342633,
+          "psnr": 26.016940043156698,
+          "ssim": 0.8689349783699085,
+          "lpips": 0.17290807783426326,
           "num_points_ratio": 0.85
         },
         "steepgs": {
@@ -52,8 +52,9 @@
     "adc_thres": {
       "status": "failed",
       "reasons": [
-        "train: SSIM 0.7499 below the floor 0.7752",
-        "train: LPIPS 0.2499 above the ceiling 0.2444"
+        "train: PSNR 20.729 below the floor 21.289",
+        "train: SSIM 0.7499 below the floor 0.8202",
+        "train: LPIPS 0.2499 above the ceiling 0.1744"
       ],
       "per_scene": {
         "train": {
