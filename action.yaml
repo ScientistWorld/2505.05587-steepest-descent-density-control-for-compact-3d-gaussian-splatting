@@ -3,4 +3,4 @@ action: submit
 gpus: 2
 test: false
 milestone: core_claim
-notes: "Rerun after fixing --no_gui port clash and GPU selection: trains SteepGS reference, ADC, ADC+Thres, seeds, longer-training and no-densify variants on 2 GPUs (resumes the 2 finished runs), freezes evaluator constants from ADC, scores reference, variants and shortcuts."
+notes: "Eval-mostly job: train paper-derived SDC variants (halved opacity, more densification steps, random offsets), build pruned-reference variants, rescore reference, variants and shortcuts with tightened per-scene quality floors (ADC-0.5 dB, -0.015 SSIM, +0.03 LPIPS)."

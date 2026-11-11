@@ -44,9 +44,9 @@ RUNS = {
     "steepgs_seed2": ("hardening/runs/steepgs_seed2", STEEP, 2, 30000, "audit"),
     "no_densify": ("hardening/runs/no_densify", ADC + ["--densify_until_iter", "0"], 0, 30000, "audit"),
     "better_long": ("hardening/runs/better_long", STEEP, 0, 45000, "audit"),
-    "better_moresteps": ("hardening/runs/better_moresteps", STEEP + ["--densify_until_iter", "25000"], 0, 40000, "extra"),
-    "ablate_random_offsets": ("hardening/runs/ablate_random_offsets", ["--densify_strategy", "steepest", "no_eig_upd"], 0, 30000, "extra"),
-    "steepgs_halved_opacity": ("hardening/runs/steepgs_halved_opacity", ["--densify_strategy", "steepest", "no_div_opacity"], 0, 30000, "extra"),
+    "better_moresteps": ("hardening/runs/better_moresteps", STEEP + ["--densify_until_iter", "25000"], 0, 40000, "audit2"),
+    "ablate_random_offsets": ("hardening/runs/ablate_random_offsets", ["--densify_strategy", "steepest", "no_eig_upd"], 0, 30000, "audit2"),
+    "steepgs_halved_opacity": ("hardening/runs/steepgs_halved_opacity", ["--densify_strategy", "steepest", "no_div_opacity"], 0, 30000, "audit2"),
     "better_long_seed1": ("hardening/runs/better_long_seed1", STEEP, 1, 45000, "extra"),
     "adc_thres_seed1": ("hardening/runs/adc_thres_seed1", ADC, 1, 30000, "extra"),
 }

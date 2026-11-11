@@ -2,9 +2,9 @@
   "experiment": "compact_view_synthesis",
   "description": "Evaluator-fixed constants. The adc_* values are the per-scene Gaussian count and validation-view quality of the standard 3DGS adaptive-density-control reference run (outputs/adc, seed 0), measured once by scripts/calibrate_protocol.py and frozen here. They define the Gaussian budget (point_cap_fraction_of_adc x adc_points), the quality floors (adc metric minus/plus the margins) and the normalisation of num_points_ratio. Nothing submitted by a method can change them.",
   "point_cap_fraction_of_adc": 0.85,
-  "psnr_margin_db": 2.0,
-  "ssim_margin": 0.06,
-  "lpips_margin": 0.1,
+  "psnr_margin_db": 0.5,
+  "ssim_margin": 0.015,
+  "lpips_margin": 0.03,
   "max_ply_points": 20000000,
   "max_pairs_per_view": 150000000,
   "lpips_weights": {
