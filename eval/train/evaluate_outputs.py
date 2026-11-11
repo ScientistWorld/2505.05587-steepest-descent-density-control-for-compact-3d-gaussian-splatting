@@ -1,263 +1,236 @@
-"""Score the visible train slice from saved splatting output artifacts.
+"""Train-side (validation) evaluator for the compact view-synthesis benchmark.
 
-This module is method-agnostic: it reads `predictions.npz` and `metrics.json`
-files produced by any method, applies a deterministic half-split over rendered
-samples, and writes scores without importing training or method code.
+Every immediate sub-directory of the outputs root is a submitted method. For
+each benchmark scene the method must provide ``<method>/<scene>/point_cloud.ply``
+(a 3D Gaussian splatting representation). The evaluator
+
+1. parses the PLY itself and counts its Gaussians (nothing the method writes
+   about itself is read);
+2. re-renders it with its own renderer at the validation cameras, whose
+   poses live in ``views.json`` next to this file;
+3. compares against ground-truth images that only exist under ``eval/train/gt``
+   (sha256-verified) with PSNR / SSIM / LPIPS-VGG;
+4. applies the evaluator-fixed feasibility rules of ``protocol.json``.
+
+A run that is missing a scene, has an unreadable or non-finite representation,
+exceeds the Gaussian budget, or falls below the reconstruction-quality floor on
+any scene is FAILED and receives the worst value of every scored metric (the
+feasibility bound), so failing can never score better than any feasible run.
+
+Usage: python -m eval.train.evaluate_outputs [--outputs-root outputs]
+                                             [--out scoring/scores_train.json]
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-from collections import OrderedDict
-from pathlib import Path
+import math
+import os
+import sys
+import time
 
-import numpy as np
+import torch
 
-from data.synthetic_gaussian_scene import make_scene
+from .gs_render import Camera, InvalidSubmission, read_gaussian_ply, render
+from .image_metrics import LPIPSVGG, file_sha256, load_gt, psnr, quantize, ssim
 
-
-EXPERIMENT = "compact_synthetic_splatting"
-PAPER_ADC_POINTS_M = 3.339
-SLICE = "train"
-SPLIT_SEED = 250505587
-
-
-def psnr(pred: np.ndarray, target: np.ndarray) -> float:
-    mse = np.mean((pred - target) ** 2)
-    return float(10.0 * np.log10(1.0 / max(mse, 1e-12)))
+HERE = os.path.dirname(os.path.abspath(__file__))
+EXPERIMENT = "compact_view_synthesis"
+METRICS = ("psnr", "ssim", "lpips", "num_points_ratio")
 
 
-def ssim_global(pred: np.ndarray, target: np.ndarray) -> float:
-    x = pred.reshape(-1)
-    y = target.reshape(-1)
-    c1 = 0.01**2
-    c2 = 0.03**2
-    mux, muy = x.mean(), y.mean()
-    vx = ((x - mux) ** 2).mean()
-    vy = ((y - muy) ** 2).mean()
-    cov = ((x - mux) * (y - muy)).mean()
-    return float(((2 * mux * muy + c1) * (2 * cov + c2)) / ((mux**2 + muy**2 + c1) * (vx + vy + c2)))
+def _load_json(name):
+    with open(os.path.join(HERE, name)) as f:
+        return json.load(f)
 
 
-def l1_error(pred: np.ndarray, target: np.ndarray) -> float:
-    return float(np.mean(np.abs(pred - target)))
+def _bounds(protocol):
+    """Per-scene feasibility rules derived from the fixed protocol constants."""
+    out = {}
+    for scene, c in protocol["scenes"].items():
+        out[scene] = {
+            "max_points": int(math.floor(protocol["point_cap_fraction_of_adc"] * c["adc_points"])),
+            "min_psnr": c["adc_psnr"] - protocol["psnr_margin_db"],
+            "min_ssim": c["adc_ssim"] - protocol["ssim_margin"],
+            "max_lpips": c["adc_lpips"] + protocol["lpips_margin"],
+            "adc_points": c["adc_points"],
+        }
+    return out
 
 
-def row_l1_errors(pred: np.ndarray, target: np.ndarray) -> np.ndarray:
-    return np.mean(np.abs(pred - target), axis=1)
-
-
-def tail_l1_p95(pred: np.ndarray, target: np.ndarray) -> float:
-    return float(np.quantile(row_l1_errors(pred, target), 0.95))
-
-
-def bright_l1_error(pred: np.ndarray, target: np.ndarray) -> float:
-    intensity = np.mean(target, axis=1)
-    cutoff = np.quantile(intensity, 0.75)
-    mask = intensity >= cutoff
-    if not np.any(mask):
-        return l1_error(pred, target)
-    return l1_error(pred[mask], target[mask])
-
-
-def channel_bias_l1(pred: np.ndarray, target: np.ndarray) -> float:
-    return float(np.mean(np.abs(np.mean(pred - target, axis=0))))
-
-
-def method_name_for_path(path: Path) -> str:
-    if path.name == "adc2d":
-        return "adc2d_baseline"
-    return path.name
-
-
-def default_path_for_method(name: str, outputs_root: Path) -> Path:
-    if name == "adc2d_baseline":
-        return outputs_root / "adc2d"
-    return outputs_root / name
-
-
-def parse_method_output(spec: str) -> tuple[str, Path]:
-    if "=" not in spec:
-        path = Path(spec)
-        return method_name_for_path(path), path
-    name, raw_path = spec.split("=", 1)
-    if not name:
-        raise ValueError(f"Method output spec has an empty method name: {spec!r}")
-    return name, Path(raw_path)
-
-
-def has_output_artifact(path: Path) -> bool:
-    return (path / "predictions.npz").is_file() and (path / "metrics.json").is_file()
-
-
-def enumerate_outputs(args: argparse.Namespace) -> "OrderedDict[str, Path]":
-    outputs: "OrderedDict[str, Path]" = OrderedDict()
-    for path in (Path(args.adc_output), Path(args.steepgs_output)):
-        if has_output_artifact(path):
-            outputs[method_name_for_path(path)] = path
-
-    root = Path(args.outputs_root)
-    if root.is_dir():
-        for path in sorted(root.iterdir()):
-            if path.is_dir() and has_output_artifact(path):
-                outputs.setdefault(method_name_for_path(path), path)
-
-    for spec in args.method_output:
-        name, path = parse_method_output(spec)
-        outputs[name] = path
-
-    if not outputs:
-        raise SystemExit(
-            "No method outputs found. Expected directories with predictions.npz "
-            "and metrics.json under outputs/ or passed via --method-output NAME=PATH."
-        )
-    return outputs
-
-
-def sample_rows(arr: np.ndarray) -> np.ndarray:
-    arr = np.asarray(arr, dtype=np.float64)
-    if arr.ndim == 0:
-        raise ValueError("Prediction arrays must contain at least one sample")
-    if arr.ndim >= 3 and arr.shape[0] in (1, 3, 4) and arr.shape[-1] not in (1, 3, 4):
-        arr = np.moveaxis(arr, 0, -1)
-    if arr.ndim > 1 and arr.shape[-1] in (1, 3, 4):
-        return arr.reshape(-1, arr.shape[-1])
-    if arr.ndim == 1:
-        return arr.reshape(-1, 1)
-    return arr.reshape(arr.shape[0], -1)
-
-
-def split_indices(n_samples: int) -> np.ndarray:
-    if n_samples < 2:
-        raise ValueError("Need at least two samples to form train/test evaluation slices")
-    rng = np.random.default_rng(SPLIT_SEED)
-    order = rng.permutation(n_samples)
-    return np.sort(order[: n_samples // 2])
-
-
-def load_run(path: Path) -> tuple[dict[str, float], dict[str, int]]:
-    if not has_output_artifact(path):
-        raise FileNotFoundError(f"Missing predictions.npz or metrics.json in {path}")
-
-    metadata = json.loads((path / "metrics.json").read_text())
-    with np.load(path / "predictions.npz") as arr:
-        pred = sample_rows(arr["pred"])
-    target = sample_rows(load_expected_target(metadata, pred.shape[0]))
-    if pred.shape != target.shape:
-        raise ValueError(f"Prediction and target shape mismatch in {path}: {pred.shape} != {target.shape}")
-
-    indices = split_indices(pred.shape[0])
-    pred_slice = pred[indices]
-    target_slice = target[indices]
-
-    raw_metrics = metadata.get("metrics", metadata)
-    metrics = {
-        "psnr": psnr(pred_slice, target_slice),
-        "ssim": ssim_global(pred_slice, target_slice),
-        "l1_error": l1_error(pred_slice, target_slice),
-        "tail_l1_p95": tail_l1_p95(pred_slice, target_slice),
-        "bright_l1_error": bright_l1_error(pred_slice, target_slice),
-        "channel_bias_l1": channel_bias_l1(pred_slice, target_slice),
-        "num_points": int(raw_metrics["num_points"]),
-        "flops_proxy": int(raw_metrics["flops_proxy"]),
-        "splits": int(raw_metrics.get("splits", 0)),
+def worst_values(protocol):
+    b = _bounds(protocol)
+    n = len(b)
+    return {
+        "psnr": sum(v["min_psnr"] for v in b.values()) / n,
+        "ssim": sum(v["min_ssim"] for v in b.values()) / n,
+        "lpips": sum(v["max_lpips"] for v in b.values()) / n,
+        "num_points_ratio": float(protocol["point_cap_fraction_of_adc"]),
     }
-    slice_info = {
-        "available_samples": int(pred.shape[0]),
-        "scored_samples": int(indices.shape[0]),
+
+
+def _integrity(views, protocol):
+    """Return (problem or None). Missing files abort; modified files fail every run."""
+    for scene, vs in views["scenes"].items():
+        for v in vs:
+            p = os.path.join(HERE, "gt", scene, v["name"])
+            if not os.path.exists(p):
+                raise SystemExit(f"missing ground truth {p}; run scripts/download.sh first")
+            if file_sha256(p) != v["sha256"]:
+                return f"ground-truth file {scene}/{v['name']} does not match its recorded hash"
+    for key, spec in protocol["lpips_weights"].items():
+        p = os.path.join(HERE, spec["file"])
+        if not os.path.exists(p):
+            raise SystemExit(f"missing LPIPS weights {p}; run scripts/download.sh first")
+        if file_sha256(p) != spec["sha256"]:
+            return f"LPIPS weight file {spec['file']} does not match its recorded hash"
+    return None
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--outputs-root", default="outputs")
+    ap.add_argument("--out", default="scoring/scores_train.json")
+    ap.add_argument("--raw", action="store_true",
+                    help="report raw per-scene metrics without feasibility rules (protocol calibration only)")
+    ap.add_argument("--device", default=None)
+    args = ap.parse_args(argv)
+
+    t0 = time.time()
+    views = _load_json("views.json")
+    protocol = _load_json("protocol.json")
+    calibrated = all(c.get("adc_points") for c in protocol["scenes"].values())
+    if not args.raw and not calibrated:
+        raise SystemExit("protocol.json is not calibrated")
+    device = torch.device(args.device or ("cuda" if torch.cuda.is_available() else "cpu"))
+    factor = int(views["downsample"])
+    scenes = list(protocol["scenes"].keys())
+    bounds = _bounds(protocol) if calibrated else None
+    integrity_problem = _integrity(views, protocol)
+
+    root = args.outputs_root
+    methods = sorted(d for d in os.listdir(root) if not d.startswith(".") and os.path.isdir(os.path.join(root, d))) \
+        if os.path.isdir(root) else []
+    print(f"[eval/train] device={device} methods={methods}", flush=True)
+
+    diag = {m: {"status": "ok", "reasons": [], "per_scene": {}} for m in methods}
+
+    def fail(m, reason):
+        if diag[m]["status"] != "failed":
+            diag[m]["status"] = "failed"
+        diag[m]["reasons"].append(reason)
+
+    if integrity_problem:
+        for m in methods:
+            fail(m, integrity_problem)
+
+    lp = None
+    if methods and not integrity_problem:
+        lp = LPIPSVGG(os.path.join(HERE, protocol["lpips_weights"]["vgg16"]["file"]),
+                      os.path.join(HERE, protocol["lpips_weights"]["lin"]["file"])).to(device)
+
+    for scene in scenes:
+        live = {}
+        for m in methods:
+            if diag[m]["status"] == "failed" and not args.raw:
+                continue
+            path = os.path.join(root, m, scene, "point_cloud.ply")
+            if not os.path.isfile(path):
+                fail(m, f"{scene}: missing point_cloud.ply")
+                continue
+            try:
+                cloud = read_gaussian_ply(path, int(protocol["max_ply_points"]))
+            except InvalidSubmission as exc:
+                fail(m, f"{scene}: {exc}")
+                continue
+            diag[m]["per_scene"][scene] = {"num_points": cloud.num_points}
+            if bounds and not args.raw and cloud.num_points > bounds[scene]["max_points"]:
+                fail(m, f"{scene}: {cloud.num_points} Gaussians exceeds the budget {bounds[scene]['max_points']}")
+                continue
+            live[m] = cloud.to(device)
+        if not live or lp is None:
+            continue
+        sums = {m: [0.0, 0.0, 0.0] for m in live}
+        for v in views["scenes"][scene]:
+            gt_np = load_gt(os.path.join(HERE, "gt", scene, v["name"]), factor)
+            gt = torch.from_numpy(gt_np).to(device).float() / 255.0
+            cam = Camera(v["R"], v["T"], v["fovx"], v["fovy"], gt.shape[1], gt.shape[0], device)
+            gt_feats = lp.features(gt)
+            for m in list(live):
+                try:
+                    img = render(live[m], cam, int(protocol["max_pairs_per_view"]))
+                except InvalidSubmission as exc:
+                    fail(m, f"{scene}/{v['name']}: {exc}")
+                    del live[m]
+                    continue
+                if not torch.isfinite(img).all():
+                    fail(m, f"{scene}/{v['name']}: non-finite render")
+                    del live[m]
+                    continue
+                img = quantize(img)
+                sums[m][0] += psnr(img, gt)
+                sums[m][1] += ssim(img, gt)
+                sums[m][2] += lp.distance(lp.features(img), gt_feats)
+            del gt_feats
+        nv = len(views["scenes"][scene])
+        for m in live:
+            ps = diag[m]["per_scene"][scene]
+            ps["psnr"], ps["ssim"], ps["lpips"] = (s / nv for s in sums[m])
+            if bounds:
+                ps["num_points_ratio"] = ps["num_points"] / bounds[scene]["adc_points"]
+            if bounds and not args.raw:
+                b = bounds[scene]
+                if not (ps["psnr"] >= b["min_psnr"]):
+                    fail(m, f"{scene}: PSNR {ps['psnr']:.3f} below the floor {b['min_psnr']:.3f}")
+                if not (ps["ssim"] >= b["min_ssim"]):
+                    fail(m, f"{scene}: SSIM {ps['ssim']:.4f} below the floor {b['min_ssim']:.4f}")
+                if not (ps["lpips"] <= b["max_lpips"]):
+                    fail(m, f"{scene}: LPIPS {ps['lpips']:.4f} above the ceiling {b['max_lpips']:.4f}")
+        print(f"[eval/train] {scene} done ({time.time() - t0:.0f}s)", flush=True)
+        del live
+
+    results = {}
+    worst = worst_values(protocol) if calibrated else None
+    for m in methods:
+        d = diag[m]
+        complete = all(s in d["per_scene"] and "psnr" in d["per_scene"][s] for s in scenes)
+        if args.raw:
+            if complete:
+                results[m] = {k: sum(d["per_scene"][s][k] for s in scenes) / len(scenes)
+                              for k in ("psnr", "ssim", "lpips")}
+            continue
+        if d["status"] == "ok" and complete:
+            vals = {k: sum(d["per_scene"][s][k] for s in scenes) / len(scenes) for k in METRICS}
+            if all(math.isfinite(x) for x in vals.values()):
+                results[m] = vals
+                continue
+            fail(m, "non-finite aggregate metric")
+        if d["status"] == "ok":
+            fail(m, "incomplete evaluation")
+        results[m] = dict(worst)
+
+    out = {
+        "metadata": {
+            "slice": "train",
+            "experiment": EXPERIMENT,
+            "views_per_scene": {s: len(views["scenes"][s]) for s in scenes},
+            "outputs_root": root,
+            "raw": bool(args.raw),
+            "device": str(device),
+            "seconds": round(time.time() - t0, 1),
+        },
+        "experiments": {EXPERIMENT: {"results": results}},
+        "_diagnostics": diag,
     }
-    return metrics, slice_info
-
-
-def load_expected_target(metadata: dict, n_test: int) -> np.ndarray:
-    args = metadata.get("args", {})
-    scene = make_scene(
-        seed=int(args.get("seed", 7)),
-        image_size=int(args.get("image_size", 96)),
-        n_train=int(args.get("n_train", 4096)),
-        n_test=int(args.get("n_test", n_test)),
-        device="cpu",
-    )
-    target = scene.test_rgb.cpu().numpy()
-    if target.shape[0] != n_test:
-        raise ValueError(f"Prediction sample count {n_test} does not match benchmark target count {target.shape[0]}")
-    return target
-
-
-def normalize_cost_metrics(results: "OrderedDict[str, dict[str, float]]") -> None:
-    if "adc2d_baseline" in results:
-        anchor = results["adc2d_baseline"]
-    else:
-        anchor = next(iter(results.values()))
-
-    adc_raw_points = max(float(anchor["num_points"]), 1.0)
-    adc_raw_flops = max(float(anchor["flops_proxy"]), 1.0)
-    for run in results.values():
-        run["point_reduction_vs_adc"] = float(1.0 - float(run["num_points"]) / adc_raw_points)
-        run["num_points"] = float(float(run["num_points"]) / adc_raw_points * PAPER_ADC_POINTS_M)
-        run["flops_proxy"] = float(float(run["flops_proxy"]) / adc_raw_flops * PAPER_ADC_POINTS_M)
-    if "adc2d_baseline" in results:
-        results["adc2d_baseline"]["point_reduction_vs_adc"] = 0.0
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--steepgs-output", default="outputs/steepgs2d")
-    parser.add_argument("--adc-output", default="outputs/adc2d")
-    parser.add_argument("--outputs-root", default="outputs")
-    parser.add_argument(
-        "--method-output",
-        action="append",
-        default=[],
-        help="Additional method output as NAME=PATH, or PATH to use the directory name.",
-    )
-    parser.add_argument("--scores", default="scoring/scores_train.json")
-    parser.add_argument("--manifest", default="scoring/evaluation_manifest_train.json")
-    args = parser.parse_args()
-
-    outputs = enumerate_outputs(args)
-    results: "OrderedDict[str, dict[str, float]]" = OrderedDict()
-    manifest_entries = []
-    for method_name, path in outputs.items():
-        metrics, slice_info = load_run(path)
-        results[method_name] = metrics
-        manifest_entries.append(
-            {
-                "slice": SLICE,
-                "experiment": EXPERIMENT,
-                "method": method_name,
-                "path": str(path),
-                **slice_info,
-            }
-        )
-
-    normalize_cost_metrics(results)
-
-    scores = {
-        "metadata": {"slice": SLICE, "split_seed": SPLIT_SEED},
-        "experiments": {EXPERIMENT: {"slice": SLICE, "results": results}},
-    }
-    scores_path = Path(args.scores)
-    scores_path.parent.mkdir(parents=True, exist_ok=True)
-    scores_path.write_text(json.dumps(scores, indent=2))
-
-    manifest_path = Path(args.manifest)
-    manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest_path.write_text(
-        json.dumps(
-            {
-                "slice": SLICE,
-                "split_seed": SPLIT_SEED,
-                "scores": str(scores_path),
-                "entries": manifest_entries,
-            },
-            indent=2,
-        )
-    )
-
-    print(json.dumps(scores["experiments"], indent=2))
+    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+    tmp = args.out + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(out, f, indent=2)
+    os.replace(tmp, args.out)
+    for m in methods:
+        print(f"[eval/train] {m}: {diag[m]['status']} {results.get(m)} {diag[m]['reasons'][:3]}", flush=True)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

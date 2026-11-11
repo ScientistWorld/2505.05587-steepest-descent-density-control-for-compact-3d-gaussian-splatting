@@ -187,7 +187,12 @@ def training(dataset, opt, pipe, logging_intervals, testing_iterations, saving_i
                         gaussians.visualize_densify_hook = None
 
                     size_threshold = 20 if iteration > opt.opacity_reset_interval else None
-                    densify_info = gaussians.densify_and_prune(opt.densify_strategy, opt.densify_grad_threshold, opt.densify_S_threshold, 0.005, scene.cameras_extent, size_threshold)
+                    if opt.densify_max_points > 0 and gaussians.get_xyz.shape[0] >= opt.densify_max_points:
+                        # Point-budgeted baseline ("3DGS + Thres." in the paper): once the
+                        # budget is reached, densification stops; pruning continues.
+                        densify_info = gaussians.prune_only(0.005, scene.cameras_extent, size_threshold)
+                    else:
+                        densify_info = gaussians.densify_and_prune(opt.densify_strategy, opt.densify_grad_threshold, opt.densify_S_threshold, 0.005, scene.cameras_extent, size_threshold)
                     write_dict_log(dataset, {'iteration': iteration, **densify_info})
 
                 if iteration % opt.opacity_reset_interval == 0 or (dataset.white_background and iteration == opt.densify_from_iter):
@@ -304,13 +309,15 @@ if __name__ == "__main__":
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
     parser.add_argument("--start_checkpoint", type=str, default = None)
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--gpu", type=int, default=0)
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
     
     print("Optimizing " + args.model_path)
 
     # Initialize system state (RNG)
-    safe_state(args.quiet)
+    safe_state(args.quiet, seed=args.seed, gpu=args.gpu)
 
     # Start GUI server, configure and run training
     network_gui.disabled = args.no_gui

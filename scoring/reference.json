@@ -1,88 +1,174 @@
 {
   "experiments": {
-    "compact_synthetic_splatting": {
-      "description": "Compact Gaussian splatting benchmark inspired by Table 1: preserve reconstruction quality while reducing Gaussian point count.",
-      "notes": "Paper-reported Table 1 values are used for normalized point count, PSNR, SSIM, and the perceptual-error slot. The lightweight local evaluator computes mean absolute color error instead of LPIPS and adds tail-error, bright-region, channel-bias, FLOPs-proxy, and split-count constraints so future agents are scored on a dependency-free synthetic benchmark. Those added reference fields are local schema anchors, not additional paper-reported numbers.",
+    "compact_view_synthesis": {
+      "description": "Novel-view synthesis on the paper's Tanks&Temples (train, truck) and Deep Blending (drjohnson, playroom) scenes: reconstruct each scene as a 3D Gaussian representation from its training views and render the held-out views (every 8th view, the paper's protocol), with as few Gaussians as possible. Paper Tables 1-5 (main comparison, per-scene breakdowns).",
+      "notes": "Paper numbers ('results') are means over the same four scenes, taken from the per-scene Tables 2-5 (3DGS, SteepGS) and the per-dataset Table 1 (3DGS + Thres., mean of the T&T and DB dataset means). The paper trains at the released image resolution on 7/8 of the views; this gym trains at half that resolution on 6/8 of the views (every 8th view is the held-out test set exactly as in the paper, the views at index 4 mod 8 are a validation set scored by eval/train). Absolute PSNR/SSIM/LPIPS are therefore not on exactly the paper's scale (half resolution typically raises PSNR); num_points_ratio is scale-free. num_points_ratio = Gaussians / Gaussians of the evaluator-fixed 3DGS-ADC reference on the same scene, averaged over scenes; the paper's value is computed from Table 5. Feasibility (evaluator-fixed, see eval/test/protocol.json): at most 0.65x the ADC reference's Gaussians per scene, PSNR >= ADC-2 dB, SSIM >= ADC-0.06, LPIPS <= ADC+0.10 per scene; a failed run gets the worst value of every metric. Coefficients: quality (PSNR 1.0, SSIM 0.5, LPIPS 0.5) and compactness (1.0) reflect the paper's claim of fewer Gaussians without sacrificing rendering quality.",
       "weight": 1.0,
       "primary_metric": "psnr",
       "metrics": {
         "psnr": {
           "higher_is_better": true,
           "coefficient": 1.0,
-          "description": "Global reconstruction fidelity on held-out sample colors."
+          "description": "Mean over scenes of the per-view PSNR (dB) of the re-rendered representation against the held-out ground-truth views."
         },
         "ssim": {
           "higher_is_better": true,
-          "coefficient": 0.3,
-          "description": "Global structural similarity proxy for the reconstructed color field."
+          "coefficient": 0.5,
+          "description": "Mean over scenes of per-view SSIM (11x11 Gaussian window) against the held-out views."
         },
-        "l1_error": {
+        "lpips": {
           "higher_is_better": false,
-          "coefficient": -0.4,
-          "description": "Mean absolute color error across held-out samples."
+          "coefficient": 0.5,
+          "description": "Mean over scenes of per-view LPIPS (VGG-16, v0.1) against the held-out views."
         },
-        "tail_l1_p95": {
+        "num_points_ratio": {
           "higher_is_better": false,
-          "coefficient": -0.25,
-          "description": "Ninety-fifth percentile per-sample absolute color error, penalizing localized failures hidden by averages."
-        },
-        "bright_l1_error": {
-          "higher_is_better": false,
-          "coefficient": -0.2,
-          "description": "Mean absolute error on the brightest quartile of target samples, which catches methods that mostly fit easy low-intensity regions."
-        },
-        "channel_bias_l1": {
-          "higher_is_better": false,
-          "coefficient": -0.15,
-          "description": "Absolute mean residual across color channels, penalizing systematic color bias."
-        },
-        "num_points": {
-          "higher_is_better": false,
-          "coefficient": -0.8,
-          "description": "Normalized Gaussian primitive count, the main compactness constraint."
-        },
-        "point_reduction_vs_adc": {
-          "higher_is_better": true,
-          "coefficient": 0.8,
-          "description": "Fractional primitive reduction relative to the ADC baseline under the same output contract."
-        },
-        "flops_proxy": {
-          "higher_is_better": false,
-          "coefficient": -0.2,
-          "description": "Machine-independent rendering-cost proxy proportional to primitives times evaluated samples."
-        },
-        "splits": {
-          "higher_is_better": false,
-          "coefficient": -0.1,
-          "description": "Total densification split count, discouraging unnecessary growth operations."
+          "coefficient": 1.0,
+          "description": "Number of Gaussians in the submitted representation divided by the evaluator-fixed Gaussian count of the standard 3DGS adaptive-density-control reference on the same scene, averaged over scenes (compactness)."
         }
       },
       "results": {
-        "adc2d_baseline": {
-          "type": "baseline",
-          "psnr": 29.037,
-          "ssim": 0.872,
-          "l1_error": 0.183,
-          "tail_l1_p95": 0.421,
-          "bright_l1_error": 0.238,
-          "channel_bias_l1": 0.035,
-          "num_points": 3.339,
-          "point_reduction_vs_adc": 0.0,
-          "flops_proxy": 3.339,
-          "splits": 0.0
-        },
-        "steepgs2d": {
+        "steepgs": {
           "type": "proposed",
-          "psnr": 28.734,
-          "ssim": 0.857,
-          "l1_error": 0.211,
-          "tail_l1_p95": 0.469,
-          "bright_l1_error": 0.271,
-          "channel_bias_l1": 0.043,
-          "num_points": 1.606,
-          "point_reduction_vs_adc": 0.519,
-          "flops_proxy": 1.606,
-          "splits": 0.0
+          "psnr": 26.8235,
+          "ssim": 0.873,
+          "lpips": 0.2228,
+          "num_points_ratio": 0.488
+        },
+        "adc": {
+          "type": "baseline",
+          "psnr": 26.7165,
+          "ssim": 0.8758,
+          "lpips": 0.2105,
+          "num_points_ratio": 1.0
+        },
+        "adc_thres": {
+          "type": "baseline",
+          "psnr": 25.8945,
+          "ssim": 0.856,
+          "lpips": 0.234,
+          "num_points_ratio": 0.5011
+        }
+      },
+      "_paper_per_scene": {
+        "source": "Tables 2-5 of the paper (full released resolution, 7/8 training views)",
+        "adc": {
+          "train": {
+            "psnr": 22.091,
+            "ssim": 0.813,
+            "lpips": 0.207,
+            "num_points": 1088197
+          },
+          "truck": {
+            "psnr": 25.394,
+            "ssim": 0.882,
+            "lpips": 0.147,
+            "num_points": 2572172
+          },
+          "drjohnson": {
+            "psnr": 29.209,
+            "ssim": 0.901,
+            "lpips": 0.244,
+            "num_points": 3316036
+          },
+          "playroom": {
+            "psnr": 30.172,
+            "ssim": 0.907,
+            "lpips": 0.244,
+            "num_points": 2320830
+          }
+        },
+        "steepgs": {
+          "train": {
+            "psnr": 21.974,
+            "ssim": 0.802,
+            "lpips": 0.23,
+            "num_points": 530476
+          },
+          "truck": {
+            "psnr": 25.395,
+            "ssim": 0.879,
+            "lpips": 0.16,
+            "num_points": 1387065
+          },
+          "drjohnson": {
+            "psnr": 29.478,
+            "ssim": 0.902,
+            "lpips": 0.251,
+            "num_points": 1485567
+          },
+          "playroom": {
+            "psnr": 30.447,
+            "ssim": 0.909,
+            "lpips": 0.25,
+            "num_points": 1107604
+          }
+        }
+      },
+      "_paper_dataset_means_table1": {
+        "tanks_and_temples": {
+          "adc": {
+            "points_m": 1.83,
+            "psnr": 23.743,
+            "ssim": 0.848,
+            "lpips": 0.177
+          },
+          "adc_thres": {
+            "points_m": 0.973,
+            "psnr": 22.415,
+            "ssim": 0.812,
+            "lpips": 0.218
+          },
+          "mcmc": {
+            "points_m": 0.957,
+            "psnr": 22.545,
+            "ssim": 0.817,
+            "lpips": 0.204
+          },
+          "revising": {
+            "points_m": 0.957,
+            "psnr": 22.339,
+            "ssim": 0.811,
+            "lpips": 0.216
+          },
+          "steepgs": {
+            "points_m": 0.958,
+            "psnr": 23.684,
+            "ssim": 0.84,
+            "lpips": 0.194
+          }
+        },
+        "deep_blending": {
+          "adc": {
+            "points_m": 2.818,
+            "psnr": 29.69,
+            "ssim": 0.904,
+            "lpips": 0.244
+          },
+          "adc_thres": {
+            "points_m": 1.326,
+            "psnr": 29.374,
+            "ssim": 0.9,
+            "lpips": 0.25
+          },
+          "mcmc": {
+            "points_m": 1.296,
+            "psnr": 29.439,
+            "ssim": 0.901,
+            "lpips": 0.237
+          },
+          "revising": {
+            "points_m": 1.296,
+            "psnr": 29.439,
+            "ssim": 0.895,
+            "lpips": 0.245
+          },
+          "steepgs": {
+            "points_m": 1.296,
+            "psnr": 29.963,
+            "ssim": 0.905,
+            "lpips": 0.25
+          }
         }
       }
     }

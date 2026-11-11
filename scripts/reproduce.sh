@@ -1,23 +1,13 @@
 #!/bin/bash
-# Reproduce the paper's results end-to-end.
-#
-# This script runs inside the compute container and should call
-# scripts/baseline.sh and scripts/method.sh to run baselines and
-# the paper's method, each of which calls scripts/evaluate.sh.
-#
-# Assumes:
-#   - Container is built (environment/container.sif)
-#   - Data and models are downloaded (via scripts/download.sh)
-#   - Working directory is /home/user
-#
-# This is the "gold standard" reproduction.
-
-set -e
-
-cd /home/user
-
-rm -rf outputs/adc2d outputs/steepgs2d outputs/sdc_sweep scoring/scores.json
-
+# Reproduce the reference end to end (inside the container, GPU, no internet).
+# Assumes scripts/download.sh has run on a node with internet.
+#   1. half-resolution training images          (data/prepare_scenes.py)
+#   2. SteepGS on all scenes                     (scripts/method.sh)
+#   3. ADC and ADC+Thres. baselines              (scripts/baseline.sh)
+#   4. validation + held-out test evaluation     (scripts/evaluate.sh)
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+bash scripts/method.sh
 bash scripts/baseline.sh
-bash scripts/sweep_sdc.sh
 bash scripts/evaluate.sh

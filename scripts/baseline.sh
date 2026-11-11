@@ -1,23 +1,12 @@
 #!/bin/bash
-# Run a baseline method from the paper.
-#
-# Baselines are simple reference methods the paper compares against. 
-# Implement this only if applicable, i.e. the paper has baselines.
-# You do not need to implement all baselines to begin — 
-# just enough to validate that the evaluation pipeline works 
-# and provide a reference point. You can decide to expand more baselines later.
-# Each baseline must be actually run and scored through evaluate.sh
-# so the numbers are verified, not self-reported.
-# You can decide what this baseline script should do yourself.
-#
-# Usage:
-#   bash scripts/baseline.sh <name>
-
-set -e
-
-cd /home/user
-
-python -m baseline.sdc2d.adc2d \
-  --output outputs/adc2d \
-  --device cpu \
-  "$@"
+# Baselines on all benchmark scenes (official 3DGS / SteepGS code base):
+#   outputs/adc        standard 3DGS adaptive density control
+#   outputs/adc_thres  ADC whose densification stops at SteepGS's Gaussian count
+#                      on the same scene ("3DGS + Thres." in the paper); needs
+#                      outputs/steepgs, so run scripts/method.sh first.
+# Usage: bash scripts/baseline.sh
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+python data/prepare_scenes.py
+python scripts/train_queue.py --runs adc adc_thres "$@"

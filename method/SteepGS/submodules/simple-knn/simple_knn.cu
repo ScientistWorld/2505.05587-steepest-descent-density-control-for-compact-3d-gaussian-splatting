@@ -12,6 +12,7 @@
 #define BOX_SIZE 1024
 
 #include "cuda_runtime.h"
+#include <cfloat>
 #include "device_launch_parameters.h"
 #include "simple_knn.h"
 #include <cub/cub.cuh>

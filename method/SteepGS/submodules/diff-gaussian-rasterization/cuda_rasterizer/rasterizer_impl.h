@@ -13,6 +13,7 @@
 #pragma once
 
 #include <iostream>
+#include <cstdint>
 #include <vector>
 #include "rasterizer.h"
 #include <cuda_runtime_api.h>

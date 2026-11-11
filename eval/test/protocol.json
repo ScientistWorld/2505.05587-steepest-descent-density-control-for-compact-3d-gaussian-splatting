@@ -1,0 +1,48 @@
+{
+  "experiment": "compact_view_synthesis",
+  "description": "Evaluator-fixed constants. The adc_* values are the per-scene Gaussian count and held-out test-view quality of the standard 3DGS adaptive-density-control reference run (outputs/adc, seed 0), measured once by scripts/calibrate_protocol.py and frozen here. They define the Gaussian budget (point_cap_fraction_of_adc x adc_points), the quality floors (adc metric minus/plus the margins) and the normalisation of num_points_ratio. Nothing submitted by a method can change them.",
+  "point_cap_fraction_of_adc": 0.65,
+  "psnr_margin_db": 2.0,
+  "ssim_margin": 0.06,
+  "lpips_margin": 0.1,
+  "max_ply_points": 20000000,
+  "max_pairs_per_view": 150000000,
+  "lpips_weights": {
+    "vgg16": {
+      "file": "weights/vgg16-397923af.pth",
+      "sha256": "397923af8e79cdbb6a7127f12361acd7a2f83e06b05044ddf496e83de57a5bf0",
+      "url": "https://download.pytorch.org/models/vgg16-397923af.pth"
+    },
+    "lin": {
+      "file": "weights/lpips_vgg_v0.1.pth",
+      "sha256": "a78928a0af1e5f0fcb1f3b9e8f8c3a2a5a3de244d830ad5c1feddc79b8432868",
+      "url": "https://raw.githubusercontent.com/richzhang/PerceptualSimilarity/master/lpips/weights/v0.1/vgg.pth"
+    }
+  },
+  "scenes": {
+    "train": {
+      "adc_points": null,
+      "adc_psnr": null,
+      "adc_ssim": null,
+      "adc_lpips": null
+    },
+    "truck": {
+      "adc_points": null,
+      "adc_psnr": null,
+      "adc_ssim": null,
+      "adc_lpips": null
+    },
+    "drjohnson": {
+      "adc_points": null,
+      "adc_psnr": null,
+      "adc_ssim": null,
+      "adc_lpips": null
+    },
+    "playroom": {
+      "adc_points": null,
+      "adc_psnr": null,
+      "adc_ssim": null,
+      "adc_lpips": null
+    }
+  }
+}

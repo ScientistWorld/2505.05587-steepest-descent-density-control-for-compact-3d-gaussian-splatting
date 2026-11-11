@@ -111,7 +111,7 @@ def build_scaling_rotation(s, r):
     L = R @ L
     return L
 
-def safe_state(silent):
+def safe_state(silent, seed=0, gpu=0):
     old_f = sys.stdout
     class F:
         def __init__(self, silent):
@@ -129,10 +129,10 @@ def safe_state(silent):
 
     sys.stdout = F(silent)
 
-    random.seed(0)
-    np.random.seed(0)
-    torch.manual_seed(0)
-    torch.cuda.set_device(torch.device("cuda:0"))
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.set_device(torch.device(f"cuda:{gpu}"))
 
 # eigensolver is called with a fixed batch to avoid memory issues
 # cusolver error: CUSOLVER_STATUS_INVALID_VALUE, when calling `cusolverDnSsyevjBatched_bufferSize( handle, jobz, uplo, n, A, lda, W, lwork, params, batchsize)`

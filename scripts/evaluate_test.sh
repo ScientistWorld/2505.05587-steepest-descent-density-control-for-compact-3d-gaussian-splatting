@@ -1,13 +1,8 @@
 #!/bin/bash
-# Held-out test-slice evaluation entry point.
-#
-# Mirrors scripts/evaluate.sh: reads pre-generated method outputs and writes a
-# score JSON, but defaults to scoring the test half of the evaluation samples.
-
-set -e
-
-cd /home/user
-
+# Held-out test evaluation of every method directory under outputs/.
+# No arguments needed; writes scoring/scores_test.json.
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 mkdir -p scoring
-
-python -m eval.test.evaluate_outputs "$@"
+python -m eval.test.evaluate_outputs --outputs-root outputs --out scoring/scores_test.json "$@"

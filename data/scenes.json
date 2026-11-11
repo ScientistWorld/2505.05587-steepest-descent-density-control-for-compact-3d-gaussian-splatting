@@ -1,0 +1,12 @@
+{
+  "source": "https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/input/tandt_db.zip",
+  "archive_sha256": "816e62f22a161abbfe841d2a6b10cdf036e297c9fa289b3bfeee9c6ec526d7e1",
+  "downsample": 2,
+  "split_rule": "views sorted by image stem; index % 8 == 0 -> test (held out, evaluator only), index % 8 == 4 -> validation (held out, evaluator only), otherwise training",
+  "scenes": [
+    {"name": "train", "dataset": "tanks_and_temples", "archive_dir": "tandt/train"},
+    {"name": "truck", "dataset": "tanks_and_temples", "archive_dir": "tandt/truck"},
+    {"name": "drjohnson", "dataset": "deep_blending", "archive_dir": "db/drjohnson"},
+    {"name": "playroom", "dataset": "deep_blending", "archive_dir": "db/playroom"}
+  ]
+}

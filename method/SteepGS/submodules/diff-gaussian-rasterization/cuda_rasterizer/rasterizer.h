@@ -15,6 +15,7 @@
 #define CUDA_RASTERIZER_H_INCLUDED
 
 #include <vector>
+#include <cstdint>
 #include <functional>
 
 namespace CudaRasterizer

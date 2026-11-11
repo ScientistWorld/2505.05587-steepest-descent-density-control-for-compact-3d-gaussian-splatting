@@ -230,3 +230,13 @@ tmp/
 protocol.md
 *.egg-info
 core.[0-9]*
+
+# Benchmark artifacts (fetched by scripts/download.sh or produced by jobs)
+eval/test/gt/
+eval/train/gt/
+eval/test/weights/
+eval/train/weights/
+hardening/runs/
+hardening/shortcuts/
+hardening/sandbox/
+*.ply

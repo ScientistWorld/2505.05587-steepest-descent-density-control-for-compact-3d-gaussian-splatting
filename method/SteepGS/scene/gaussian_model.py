@@ -527,6 +527,19 @@ class GaussianModel:
         )
 
     
+    def prune_only(self, min_opacity, extent, max_screen_size):
+        """Pruning step of densify_and_prune without adding points (budgeted baseline)."""
+        total_points_before = self.get_xyz.shape[0]
+        prune_mask = (self.get_opacity < min_opacity).squeeze()
+        if max_screen_size:
+            big_points_vs = self.max_radii2D > max_screen_size
+            big_points_ws = self.get_scaling.max(dim=1).values > 0.1 * extent
+            prune_mask = torch.logical_or(torch.logical_or(prune_mask, big_points_vs), big_points_ws)
+        self.prune_points(prune_mask)
+        torch.cuda.empty_cache()
+        return dict(total_points_before=total_points_before, total_points_after=self.get_xyz.shape[0],
+                    num_added_points=0, num_pruned_points=int(torch.sum(prune_mask).item()))
+
     def densify_and_split_steepest(self, options, viewspace_grad_norms, xyz_grads, splitting_mats, grad_var_threshold, grad_threshold, S_threshold, scene_extent):
 
         # set N=2 optimally
