@@ -1,0 +1,42 @@
+{
+  "case": "weaker_steps_seed23",
+  "method": "steepgs2d",
+  "variant": "weaker_steps",
+  "optimization_seed": 23,
+  "scene_seed": 7,
+  "reported_metrics": {
+    "psnr": 21.6448974609375,
+    "ssim": 0.775234580039978,
+    "l1_error": 0.02915298193693161,
+    "num_points": 15,
+    "point_reduction_vs_adc": NaN,
+    "splits": 3,
+    "flops_proxy": 1105920
+  },
+  "target_args": {
+    "output": "/home/user/outputs/steepgs2d",
+    "device": "cpu",
+    "seed": 7,
+    "steps": 150,
+    "batch_size": 512,
+    "n_train": 4096,
+    "n_test": 4096,
+    "image_size": 96,
+    "init_points": 12,
+    "max_points": 72,
+    "lr": 0.045,
+    "densify_from": 150,
+    "densify_interval": 75,
+    "epsilon": 0.045,
+    "split_threshold": -2e-05,
+    "grad_threshold": 0.035
+  },
+  "train_exit": 0,
+  "test_exit": 0,
+  "evaluation_seconds": 60.45294571899285,
+  "outputs_on_disk": [
+    "outputs/adc2d",
+    "outputs/steepgs2d"
+  ],
+  "test_scores_written": true
+}

@@ -1,0 +1,31 @@
+{
+  "slice": "train",
+  "split_seed": 250505587,
+  "scores": "scoring/scores_train.json",
+  "entries": [
+    {
+      "slice": "train",
+      "experiment": "compact_synthetic_splatting",
+      "method": "adc2d_baseline",
+      "path": "outputs/adc2d",
+      "available_samples": 4096,
+      "scored_samples": 2048
+    },
+    {
+      "slice": "train",
+      "experiment": "compact_synthetic_splatting",
+      "method": "steepgs2d",
+      "path": "outputs/steepgs2d",
+      "available_samples": 4096,
+      "scored_samples": 2048
+    },
+    {
+      "slice": "train",
+      "experiment": "compact_synthetic_splatting",
+      "method": "shortcut_quality_decoy",
+      "path": "outputs/shortcut_quality_decoy",
+      "available_samples": 4096,
+      "scored_samples": 2048
+    }
+  ]
+}

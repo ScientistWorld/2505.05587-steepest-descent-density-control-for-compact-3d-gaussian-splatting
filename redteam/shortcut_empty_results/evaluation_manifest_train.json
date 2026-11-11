@@ -1,0 +1,6 @@
+{
+  "slice": "train",
+  "split_seed": 250505587,
+  "scores": "scoring/scores_train.json",
+  "entries": []
+}

@@ -1,0 +1,38 @@
+{
+  "metadata": {
+    "slice": "test",
+    "split_seed": 250505587,
+    "train_scores": "scoring/scores_train.json"
+  },
+  "experiments": {
+    "compact_synthetic_splatting": {
+      "slice": "test",
+      "results": {
+        "adc2d_baseline": {
+          "psnr": 39.18092278949302,
+          "ssim": 0.9965912748222712,
+          "l1_error": 0.006802863876501512,
+          "tail_l1_p95": 0.023346628887477974,
+          "bright_l1_error": 0.00815593830054695,
+          "channel_bias_l1": 0.002113541268598144,
+          "num_points": 3.339,
+          "flops_proxy": 3.339,
+          "splits": 132,
+          "point_reduction_vs_adc": 0.0
+        },
+        "steepgs2d": {
+          "psnr": 37.422943605510554,
+          "ssim": 0.9952114931089284,
+          "l1_error": 0.007612210397169837,
+          "tail_l1_p95": 0.0261595440249501,
+          "bright_l1_error": 0.010680559140382684,
+          "channel_bias_l1": 0.0014116669296256764,
+          "num_points": 3.339,
+          "flops_proxy": 3.339,
+          "splits": 0,
+          "point_reduction_vs_adc": 0.0
+        }
+      }
+    }
+  }
+}

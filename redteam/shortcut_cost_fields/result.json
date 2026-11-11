@@ -1,0 +1,39 @@
+{
+  "case": "shortcut_cost_fields",
+  "method": "steepgs2d",
+  "reported_metrics": {
+    "psnr": 40.592750549316406,
+    "ssim": 0.9976198077201843,
+    "l1_error": 0.0060239373706281185,
+    "num_points": 0,
+    "point_reduction_vs_adc": NaN,
+    "splits": 0,
+    "flops_proxy": 0
+  },
+  "target_args": {
+    "output": "outputs/sdc_sweep/mp72_thrm2em5",
+    "device": "cpu",
+    "seed": 7,
+    "steps": 900,
+    "batch_size": 512,
+    "n_train": 4096,
+    "n_test": 4096,
+    "image_size": 96,
+    "init_points": 12,
+    "max_points": 72,
+    "lr": 0.045,
+    "densify_from": 150,
+    "densify_interval": 75,
+    "epsilon": 0.045,
+    "split_threshold": -2e-05,
+    "grad_threshold": 0.035
+  },
+  "train_exit": 0,
+  "test_exit": 0,
+  "evaluation_seconds": 35.41602438100381,
+  "outputs_on_disk": [
+    "outputs/adc2d",
+    "outputs/steepgs2d"
+  ],
+  "test_scores_written": true
+}
