@@ -1,0 +1,49 @@
+{
+  "metadata": {
+    "slice": "train",
+    "split_seed": 250505587
+  },
+  "experiments": {
+    "compact_synthetic_splatting": {
+      "slice": "train",
+      "results": {
+        "adc2d_baseline": {
+          "psnr": 39.75457016644014,
+          "ssim": 0.9972444174773543,
+          "l1_error": 0.006334151663882928,
+          "tail_l1_p95": 0.02197270365431904,
+          "bright_l1_error": 0.007729165347654998,
+          "channel_bias_l1": 0.0018618825135557381,
+          "num_points": 3.339,
+          "flops_proxy": 3.339,
+          "splits": 132,
+          "point_reduction_vs_adc": 0.0
+        },
+        "steepgs2d": {
+          "psnr": 15.774874978714074,
+          "ssim": 0.0006779560106910203,
+          "l1_error": 0.0785153032120632,
+          "tail_l1_p95": 0.31465306331713977,
+          "bright_l1_error": 0.24151162642950416,
+          "channel_bias_l1": 0.0785153032120632,
+          "num_points": -23187.5,
+          "flops_proxy": -314500.59678819444,
+          "splits": -1000000,
+          "point_reduction_vs_adc": 6945.444444444444
+        },
+        "shortcut_quality_decoy": {
+          "psnr": -400.00000017407285,
+          "ssim": 6.669339473236038e-23,
+          "l1_error": 1.0000000200408773e+20,
+          "tail_l1_p95": 1.0000000200408773e+20,
+          "bright_l1_error": 1.0000000200408773e+20,
+          "channel_bias_l1": 1.0000000200408773e+20,
+          "num_points": 1.6695,
+          "flops_proxy": 1.6695,
+          "splits": 60,
+          "point_reduction_vs_adc": 0.5
+        }
+      }
+    }
+  }
+}

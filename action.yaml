@@ -1,4 +1,4 @@
 action: submit
 gpus: 0
 test: true
-notes: "Run bundled scoring audit: three-seed reference/better/weaker controls, brute-force Gaussian control, and artifact/data/degenerate-output shortcuts. All cases call no-argument hidden test and restore workspace artifacts."
+notes: "Confirm failed-task shortcut combining constant-zero predictions, impossible negative resource costs, and a deliberately bad ordinary output; run unchanged hidden test with no arguments."
