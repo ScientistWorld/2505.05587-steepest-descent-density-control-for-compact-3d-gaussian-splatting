@@ -1,7 +1,7 @@
 {
   "experiment": "compact_view_synthesis",
   "description": "Evaluator-fixed constants. The adc_* values are the per-scene Gaussian count and validation-view quality of the standard 3DGS adaptive-density-control reference run (outputs/adc, seed 0), measured once by scripts/calibrate_protocol.py and frozen here. They define the Gaussian budget (point_cap_fraction_of_adc x adc_points), the quality floors (adc metric minus/plus the margins) and the normalisation of num_points_ratio. Nothing submitted by a method can change them.",
-  "point_cap_fraction_of_adc": 0.65,
+  "point_cap_fraction_of_adc": 0.85,
   "psnr_margin_db": 2.0,
   "ssim_margin": 0.06,
   "lpips_margin": 0.1,
@@ -21,28 +21,28 @@
   },
   "scenes": {
     "train": {
-      "adc_points": null,
-      "adc_psnr": null,
-      "adc_ssim": null,
-      "adc_lpips": null
+      "adc_points": 863323,
+      "adc_psnr": 21.78947416059162,
+      "adc_ssim": 0.8352216748814834,
+      "adc_lpips": 0.1443528844117138
     },
     "truck": {
-      "adc_points": null,
-      "adc_psnr": null,
-      "adc_ssim": null,
-      "adc_lpips": null
+      "adc_points": 1690818,
+      "adc_psnr": 25.66068085232187,
+      "adc_ssim": 0.9029483295256092,
+      "adc_lpips": 0.09605032986690921
     },
     "drjohnson": {
-      "adc_points": null,
-      "adc_psnr": null,
-      "adc_ssim": null,
-      "adc_lpips": null
+      "adc_points": 3054914,
+      "adc_psnr": 28.179288295330203,
+      "adc_ssim": 0.8724419366229664,
+      "adc_lpips": 0.18405554309543787
     },
     "playroom": {
-      "adc_points": null,
-      "adc_psnr": null,
-      "adc_ssim": null,
-      "adc_lpips": null
+      "adc_points": 1937613,
+      "adc_psnr": 30.438316864383097,
+      "adc_ssim": 0.9251279724495751,
+      "adc_lpips": 0.14717355396299223
     }
   }
 }

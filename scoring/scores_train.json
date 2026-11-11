@@ -1,0 +1,112 @@
+{
+  "metadata": {
+    "slice": "train",
+    "experiment": "compact_view_synthesis",
+    "views_per_scene": {
+      "train": 38,
+      "truck": 31,
+      "drjohnson": 33,
+      "playroom": 28
+    },
+    "outputs_root": "outputs",
+    "raw": false,
+    "device": "cuda:0",
+    "seconds": 47.4
+  },
+  "experiments": {
+    "compact_view_synthesis": {
+      "results": {
+        "adc": {
+          "psnr": 24.516940043156698,
+          "ssim": 0.8239349783699086,
+          "lpips": 0.2429080778342633,
+          "num_points_ratio": 0.85
+        },
+        "adc_thres": {
+          "psnr": 24.516940043156698,
+          "ssim": 0.8239349783699086,
+          "lpips": 0.2429080778342633,
+          "num_points_ratio": 0.85
+        },
+        "steepgs": {
+          "psnr": 26.662642090660878,
+          "ssim": 0.8834139729087236,
+          "lpips": 0.1470514216150758,
+          "num_points_ratio": 0.634453729118806
+        }
+      }
+    }
+  },
+  "_diagnostics": {
+    "adc": {
+      "status": "failed",
+      "reasons": [
+        "train: 863323 Gaussians exceeds the budget 733824"
+      ],
+      "per_scene": {
+        "train": {
+          "num_points": 863323
+        }
+      }
+    },
+    "adc_thres": {
+      "status": "failed",
+      "reasons": [
+        "train: SSIM 0.7499 below the floor 0.7752",
+        "train: LPIPS 0.2499 above the ceiling 0.2444"
+      ],
+      "per_scene": {
+        "train": {
+          "num_points": 522470,
+          "psnr": 20.729228986508428,
+          "ssim": 0.7499256981046576,
+          "lpips": 0.24990506283938885,
+          "num_points_ratio": 0.6051848497028343
+        },
+        "truck": {
+          "num_points": 1332124
+        },
+        "drjohnson": {
+          "num_points": 1737783
+        },
+        "playroom": {
+          "num_points": 1048943
+        }
+      }
+    },
+    "steepgs": {
+      "status": "ok",
+      "reasons": [],
+      "per_scene": {
+        "train": {
+          "num_points": 526982,
+          "psnr": 21.70277761179269,
+          "ssim": 0.8284491520178946,
+          "lpips": 0.15583893188618517,
+          "num_points_ratio": 0.610411167083467
+        },
+        "truck": {
+          "num_points": 1316549,
+          "psnr": 25.46688822850485,
+          "ssim": 0.8980925006251181,
+          "lpips": 0.10223537114178462,
+          "num_points_ratio": 0.7786461937358131
+        },
+        "drjohnson": {
+          "num_points": 1768555,
+          "psnr": 28.82335763322097,
+          "ssim": 0.8807487144614711,
+          "lpips": 0.18067476012264239,
+          "num_points_ratio": 0.5789213706179618
+        },
+        "playroom": {
+          "num_points": 1104122,
+          "psnr": 30.657544889125006,
+          "ssim": 0.9263655245304108,
+          "lpips": 0.14945662330969103,
+          "num_points_ratio": 0.5698361850379823
+        }
+      }
+    }
+  }
+}
