@@ -3,14 +3,28 @@
 - **Paper ID:** 2505.05587
 - **Title:** Steepest Descent Density Control for Compact 3D Gaussian Splatting
 - **Domain:** Computer Vision / Neural Rendering
-- **TL;DR:** The paper makes 3D Gaussian Splatting more compact by splitting only primitives whose local splitting matrix indicates a loss-reducing saddle escape direction.
+- **TL;DR:** Grow 3D Gaussian Splatting models by splitting only primitives whose
+  splitting matrix has a negative eigenvalue, into two half-opacity off-springs
+  along its least eigenvector: about half the Gaussians at the same quality.
 
-## Short Summary
+## The gym
 
-3DGS often creates redundant Gaussian primitives during adaptive densification. SteepGS analyzes densification as a local optimization problem and derives a splitting matrix for each primitive. The optimal split uses two offspring, halves opacity, and moves them along the least-eigenvector direction when the smallest eigenvalue is negative. The paper reports roughly 50% fewer points while preserving rendering quality on Mip-NeRF360, Tanks & Temples, and Deep Blending.
+- Data: the paper's Tanks&Temples (train, truck) and Deep Blending (drjohnson,
+  playroom) scenes from the public 3DGS archive, half resolution; every 8th view
+  held out for the hidden test (paper protocol), views at index 4 mod 8 for the
+  validation slice, the rest for training.
+- Submission: one standard 3DGS PLY per scene in `outputs/<method>/<scene>/`.
+- Scoring: the evaluator re-renders each PLY at the held-out cameras, measures
+  PSNR / SSIM / LPIPS and the Gaussian count relative to a frozen standard-3DGS
+  run, and fails runs that exceed the Gaussian budget or lose quality relative
+  to standard 3DGS on any scene.
 
-## Key Results
+## Key results
 
-- Mip-NeRF360: SteepGS reports 1.606M points versus 3.339M for 3DGS, with PSNR 28.734 versus 29.037.
-- Tanks & Temples: SteepGS reports 0.958M points versus 1.830M, with PSNR 23.684 versus 23.743.
-- Deep Blending: SteepGS reports 1.296M points versus 2.818M, with PSNR 29.963 versus 29.690.
+| | Gaussians vs 3DGS | PSNR | SSIM | LPIPS |
+|---|---:|---:|---:|---:|
+| paper, same 4 scenes, full res (Tables 2-5) | 0.488 | 26.82 (3DGS 26.72) | 0.873 (0.876) | 0.223 (0.211) |
+| this gym, half res, held-out test | 0.465 | 26.98 (3DGS 26.66) | 0.893 (0.891) | 0.145 (0.140) |
+
+Standard densification stopped at the same count loses 2.5 dB on the *train*
+scene and fails the quality floor (paper: -1.3 dB on Tanks&Temples).
