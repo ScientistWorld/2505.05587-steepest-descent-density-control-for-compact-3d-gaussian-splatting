@@ -36,6 +36,9 @@ STEEP = ["--densify_strategy", "steepest"]
 ADC = ["--densify_strategy", "adc"]
 
 # name -> (destination dir, extra args, seed, iterations, group)
+# "steepest" uses the paper's steepest density control including the halving of
+# off-spring opacity (Theorem 2); "no_div_opacity" switches the halving off,
+# which is what the released code did by default.
 RUNS = {
     "steepgs": ("outputs/steepgs", STEEP, 0, 30000, "reference"),
     "adc": ("outputs/adc", ADC, 0, 30000, "reference"),
@@ -43,17 +46,21 @@ RUNS = {
     "steepgs_seed1": ("hardening/runs/steepgs_seed1", STEEP, 1, 30000, "audit"),
     "steepgs_seed2": ("hardening/runs/steepgs_seed2", STEEP, 2, 30000, "audit"),
     "no_densify": ("hardening/runs/no_densify", ADC + ["--densify_until_iter", "0"], 0, 30000, "audit"),
-    "better_long": ("hardening/runs/better_long", STEEP, 0, 45000, "audit"),
-    "better_moresteps": ("hardening/runs/better_moresteps", STEEP + ["--densify_until_iter", "25000"], 0, 40000, "audit2"),
-    "ablate_random_offsets": ("hardening/runs/ablate_random_offsets", ["--densify_strategy", "steepest", "no_eig_upd"], 0, 30000, "audit2"),
-    "steepgs_halved_opacity": ("hardening/runs/steepgs_halved_opacity", ["--densify_strategy", "steepest", "no_div_opacity"], 0, 30000, "audit2"),
-    "better_long_seed1": ("hardening/runs/better_long_seed1", STEEP, 1, 45000, "extra"),
+    # In-scope variants: opacity pruning when densification ends (training continues).
+    "steepgs_endprune05": ("hardening/runs/steepgs_endprune05", STEEP + ["--final_prune_opacity", "0.05"], 0, 30000, "audit"),
+    "steepgs_endprune10": ("hardening/runs/steepgs_endprune10", STEEP + ["--final_prune_opacity", "0.1"], 0, 30000, "audit"),
+    # Audit runs of the released-code default (no opacity halving), kept for comparison.
+    "steepgs_nohalf": ("hardening/runs/steepgs_nohalf", STEEP + ["no_div_opacity"], 0, 30000, "nohalf"),
+    "steepgs_nohalf_seed1": ("hardening/runs/steepgs_nohalf_seed1", STEEP + ["no_div_opacity"], 1, 30000, "nohalf"),
+    "steepgs_nohalf_seed2": ("hardening/runs/steepgs_nohalf_seed2", STEEP + ["no_div_opacity"], 2, 30000, "nohalf"),
+    "nohalf_long45k": ("hardening/runs/nohalf_long45k", STEEP + ["no_div_opacity"], 0, 45000, "nohalf"),
+    "nohalf_moresteps": ("hardening/runs/nohalf_moresteps", STEEP + ["no_div_opacity", "--densify_until_iter", "25000"], 0, 40000, "nohalf"),
     "adc_thres_seed1": ("hardening/runs/adc_thres_seed1", ADC, 1, 30000, "extra"),
 }
 # Priority order of (run, scene) tasks.
-ORDER = ["steepgs", "adc", "adc_thres", "steepgs_seed1", "better_long", "no_densify", "steepgs_seed2",
-         "better_moresteps", "adc_thres_seed1", "ablate_random_offsets", "steepgs_halved_opacity",
-         "better_long_seed1"]
+ORDER = ["steepgs", "adc", "adc_thres", "steepgs_seed1", "steepgs_endprune05", "steepgs_seed2", "steepgs_endprune10", "no_densify",
+         "steepgs_nohalf", "steepgs_nohalf_seed1", "steepgs_nohalf_seed2", "nohalf_long45k",
+         "nohalf_moresteps", "adc_thres_seed1"]
 
 
 def ply_count(path: str) -> int:

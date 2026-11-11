@@ -2,18 +2,32 @@
 
 ## Research Problem
 
-This benchmark studies compact density control for Gaussian splatting: how to decide which primitives should be added, removed, or transformed during optimization so quality remains high without redundant point growth.
+Density control for 3D Gaussian splatting: during training, deciding which
+Gaussians to add, where to place them, how to set their parameters and when to
+remove them, so that the final representation is compact without losing
+rendering quality.
 
 ## Core Contribution Scope
 
-Future improvements should stay within density-control methods for Gaussian primitive fields. The central object of study is the training-time rule that determines primitive splitting or growth while preserving reconstruction quality.
+Improvements should come from the training-time density-control rule (and its
+interaction with the optimisation schedule): selection criteria for growth,
+offspring count and placement, opacity/scale handling of new primitives, pruning
+decisions made during training, and budget allocation across the scene.
 
 ## Approach Scope
 
-Scientists may modify point selection criteria, local second-order or first-order statistics, offspring placement, opacity handling, pruning, or related optimization schedules. The method should still produce a Gaussian-splatting representation evaluated through the shared primitive-count and reconstruction metrics.
+Any growth/pruning criterion, statistic (first- or second-order) or schedule is
+in scope, as long as the method trains a standard 3D Gaussian splatting
+representation from the provided training views within a comparable step budget
+and submits it through the standard PLY contract.
 
 ## Out of Bounds
 
-- Replacing Gaussian splatting with a neural network, voxel grid, mesh, or another representation family.
-- Improving the score by simply increasing the primitive budget, training samples, or training iterations under the same experiment key.
-- Using post-hoc compression alone without addressing density control during training.
+- Replacing Gaussian splatting with another representation (neural fields,
+  meshes, voxels) or changing the renderer conventions.
+- Post-hoc compression of a finished model as a separate stage (pruning or
+  distilling a trained model afterwards, quantisation, codebooks). The paper's
+  question is how density control itself avoids redundancy.
+- Using held-out views, the evaluator's data, or extra training data.
+- Buying quality with more Gaussians than the budget or with substantially more
+  optimisation steps.

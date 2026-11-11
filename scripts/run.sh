@@ -31,7 +31,7 @@ if [ ! -f hardening/parity_smoke.json ]; then
 fi
 
 # 1. Trainings (reference first, then audit variants), all visible GPUs.
-python scripts/train_queue.py --groups reference audit audit2 --deadline-hours 2.0
+python scripts/train_queue.py --groups reference audit --deadline-hours 2.4
 python hardening/make_variants.py || echo "VARIANT BUILD FAILED"
 
 # 2. One-time calibration of the evaluator constants from the ADC reference.

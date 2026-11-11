@@ -618,10 +618,15 @@ class GaussianModel:
         new_features_rest = self._features_rest[clone_pts_mask]
         new_scaling = self._scaling[clone_pts_mask]
         new_rotation = self._rotation[clone_pts_mask]
-        if 'no_div_opacity' not in options:
+        # Paper, Theorem 2 / Algorithm 1: both off-springs carry half of the parent's
+        # opacity. (The released code applied the halving only when 'no_div_opacity'
+        # was given, i.e. the flag was inverted; 'no_div_opacity' now disables it.)
+        if 'no_div_opacity' in options:
             new_opacities = self._opacity[clone_pts_mask]
         else:
             new_opacities = self.inverse_opacity_activation(self.get_opacity[clone_pts_mask] * 0.5)
+            # The parent becomes the first off-spring, so it is halved as well.
+            self._opacity[clone_pts_mask] = new_opacities
         self.densification_postfix(new_xyz, new_features_dc, new_features_rest, new_opacities, new_scaling, new_rotation)
 
 
@@ -634,7 +639,7 @@ class GaussianModel:
         new_features_dc = self._features_dc[split_pts_mask].repeat(N,1,1)
         new_features_rest = self._features_rest[split_pts_mask].repeat(N,1,1)
 
-        if 'no_div_opacity' not in options:
+        if 'no_div_opacity' in options:
             new_opacity = self._opacity[split_pts_mask].repeat(N,1)
         else:
             new_opacity = self.inverse_opacity_activation(self.get_opacity[split_pts_mask].repeat(N,1) * 0.5)

@@ -198,6 +198,12 @@ def training(dataset, opt, pipe, logging_intervals, testing_iterations, saving_i
                 if iteration % opt.opacity_reset_interval == 0 or (dataset.white_background and iteration == opt.densify_from_iter):
                     gaussians.reset_opacity()
 
+            # Optional schedule (off by default): when densification ends, drop
+            # Gaussians whose opacity stayed below a threshold, then keep training.
+            if opt.final_prune_opacity > 0 and iteration == opt.densify_until_iter:
+                gaussians.prune_points((gaussians.get_opacity < opt.final_prune_opacity).squeeze())
+                torch.cuda.empty_cache()
+
             # Optimizer step
             if iteration < opt.iterations:
                 gaussians.optimizer.step()
