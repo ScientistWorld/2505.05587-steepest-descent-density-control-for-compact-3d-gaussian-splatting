@@ -17,7 +17,7 @@
     "splits": 60,
     "point_reduction_vs_adc": 0.5
   },
-  "control_delta_rank": -0.40281471203320623,
-  "case_cohort_delta_rank": -0.41784012938032067,
-  "pooled_delta_rank": -0.025498562313920538
+  "control_delta_rank": -0.4028147360953433,
+  "case_cohort_delta_rank": -0.41784015434947147,
+  "pooled_delta_rank": -0.019734160975232826
 }

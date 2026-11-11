@@ -34,7 +34,10 @@ def main():
         rows = load_json(scores)["experiments"][EXPERIMENT]["results"] if scores.exists() else {}
         records[name] = {"details": details, "results": rows}
 
-    reference = records["reference_original"]["results"]["steepgs2d"]
+    # The ranking target is the iteration's shipped scores_test.json. Preserve
+    # the reevaluation too: CPU reduction ordering changes it by ~1.5e-7 dB.
+    reference = load_json(HERE / "reference_anchor.json")["experiments"][EXPERIMENT]["results"]["steepgs2d"]
+    reevaluated_reference = records["reference_original"]["results"]["steepgs2d"]
     def finite(row):
         return all(isinstance(row.get(k), (int, float)) and math.isfinite(row[k]) for k in metrics)
     def deviations(population):
@@ -63,6 +66,8 @@ def main():
     summary = {
         "formula": "sum(weight * abs(coefficient) * direction * (value - reference_value) / population_stddev)",
         "reference": reference,
+        "reevaluated_reference": reevaluated_reference,
+        "reference_reevaluation_metric_delta": {k: reevaluated_reference[k] - reference[k] for k in metrics},
         "control_cohort": control_names + ["adc2d_baseline"],
         "control_scales": fixed_scales,
         "pooled_finite_method_rows": len(pooled),

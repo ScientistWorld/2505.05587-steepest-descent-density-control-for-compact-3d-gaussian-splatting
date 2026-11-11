@@ -1,0 +1,30 @@
+[
+  {
+    "run_id": "7b2e1855-e82",
+    "status": "completed",
+    "returncode": 0,
+    "duration": 2529.883449316025,
+    "submitted_at": 1794390673.2108042,
+    "started_at": 1794390711.843273,
+    "completed_at": 1794393241.7267222,
+    "gpus": 0,
+    "test_node": true,
+    "cases": 28,
+    "command": "bash scripts/run.sh",
+    "launcher": "redteam/batch.sh"
+  },
+  {
+    "run_id": "13b07191-c57",
+    "status": "completed",
+    "returncode": 0,
+    "duration": 60.39310169219971,
+    "submitted_at": 1794393621.8472164,
+    "started_at": 1794393662.0928738,
+    "completed_at": 1794393722.4859755,
+    "gpus": 0,
+    "test_node": true,
+    "cases": 1,
+    "command": "bash scripts/run.sh",
+    "launcher": "redteam/confirm.sh"
+  }
+]
