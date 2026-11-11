@@ -30,7 +30,9 @@ import os
 import sys
 import time
 
-import torch
+os.environ.setdefault("CUDA_DEVICE_ORDER", "PCI_BUS_ID")
+
+import torch  # noqa: E402
 
 from .gs_render import Camera, InvalidSubmission, read_gaussian_ply, render
 from .image_metrics import LPIPSVGG, file_sha256, load_gt, psnr, quantize, ssim
@@ -88,6 +90,26 @@ def _integrity(views, protocol):
     return None
 
 
+def _pick_device(requested):
+    """Requested device, else the visible GPU with the most free memory, else CPU."""
+    if requested:
+        return torch.device(requested)
+    if not torch.cuda.is_available():
+        return torch.device("cpu")
+    best = 0
+    try:
+        import subprocess
+
+        q = subprocess.run(["nvidia-smi", "--query-gpu=index,memory.free", "--format=csv,noheader,nounits"],
+                           capture_output=True, text=True, check=True, timeout=30).stdout
+        rows = [tuple(int(x) for x in line.split(",")) for line in q.strip().splitlines()]
+        if len(rows) == torch.cuda.device_count():
+            best = max(rows, key=lambda r: (r[1], -r[0]))[0]
+    except Exception:
+        best = 0
+    return torch.device(f"cuda:{best}")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--outputs-root", default="outputs")
@@ -103,7 +125,7 @@ def main(argv=None):
     calibrated = all(c.get("adc_points") for c in protocol["scenes"].values())
     if not args.raw and not calibrated:
         raise SystemExit("protocol.json is not calibrated")
-    device = torch.device(args.device or ("cuda" if torch.cuda.is_available() else "cpu"))
+    device = _pick_device(args.device)
     factor = int(views["downsample"])
     scenes = list(protocol["scenes"].keys())
     bounds = _bounds(protocol) if calibrated else None
@@ -130,23 +152,41 @@ def main(argv=None):
         lp = LPIPSVGG(os.path.join(HERE, protocol["lpips_weights"]["vgg16"]["file"]),
                       os.path.join(HERE, protocol["lpips_weights"]["lin"]["file"])).to(device)
 
-    for scene in scenes:
-        live = {}
-        for m in methods:
+    # Pass 1: every scene file of every method is parsed and checked before any
+    # rendering, so structurally invalid or over-budget runs fail cheaply.
+    for m in methods:
+        for scene in scenes:
             if diag[m]["status"] == "failed" and not args.raw:
-                continue
+                break
             path = os.path.join(root, m, scene, "point_cloud.ply")
             if not os.path.isfile(path):
                 fail(m, f"{scene}: missing point_cloud.ply")
                 continue
             try:
+                n_pts = read_gaussian_ply(path, int(protocol["max_ply_points"])).num_points
+            except InvalidSubmission as exc:
+                fail(m, f"{scene}: {exc}")
+                continue
+            diag[m]["per_scene"][scene] = {"num_points": n_pts}
+            if bounds and not args.raw and n_pts > bounds[scene]["max_points"]:
+                fail(m, f"{scene}: {n_pts} Gaussians exceeds the budget {bounds[scene]['max_points']}")
+
+    # Pass 2: render and score the remaining runs scene by scene.
+    for scene in scenes:
+        live = {}
+        for m in methods:
+            if diag[m]["status"] == "failed" and not args.raw:
+                continue
+            if scene not in diag[m]["per_scene"]:
+                continue
+            path = os.path.join(root, m, scene, "point_cloud.ply")
+            try:
                 cloud = read_gaussian_ply(path, int(protocol["max_ply_points"]))
             except InvalidSubmission as exc:
                 fail(m, f"{scene}: {exc}")
                 continue
-            diag[m]["per_scene"][scene] = {"num_points": cloud.num_points}
-            if bounds and not args.raw and cloud.num_points > bounds[scene]["max_points"]:
-                fail(m, f"{scene}: {cloud.num_points} Gaussians exceeds the budget {bounds[scene]['max_points']}")
+            if cloud.num_points != diag[m]["per_scene"][scene]["num_points"]:
+                fail(m, f"{scene}: point_cloud.ply changed during evaluation")
                 continue
             live[m] = cloud.to(device)
         if not live or lp is None:

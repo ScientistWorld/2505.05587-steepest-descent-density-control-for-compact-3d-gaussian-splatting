@@ -43,15 +43,15 @@ RUNS = {
     "steepgs_seed1": ("hardening/runs/steepgs_seed1", STEEP, 1, 30000, "audit"),
     "steepgs_seed2": ("hardening/runs/steepgs_seed2", STEEP, 2, 30000, "audit"),
     "no_densify": ("hardening/runs/no_densify", ADC + ["--densify_until_iter", "0"], 0, 30000, "audit"),
-    "better_long": ("hardening/runs/better_long", STEEP, 0, 60000, "audit"),
-    "better_moresteps": ("hardening/runs/better_moresteps", STEEP + ["--densify_until_iter", "25000"], 0, 40000, "audit"),
-    "ablate_random_offsets": ("hardening/runs/ablate_random_offsets", ["--densify_strategy", "steepest", "no_eig_upd"], 0, 30000, "audit"),
-    "steepgs_halved_opacity": ("hardening/runs/steepgs_halved_opacity", ["--densify_strategy", "steepest", "no_div_opacity"], 0, 30000, "audit"),
-    "better_long_seed1": ("hardening/runs/better_long_seed1", STEEP, 1, 60000, "audit"),
-    "adc_thres_seed1": ("hardening/runs/adc_thres_seed1", ADC, 1, 30000, "audit"),
+    "better_long": ("hardening/runs/better_long", STEEP, 0, 45000, "audit"),
+    "better_moresteps": ("hardening/runs/better_moresteps", STEEP + ["--densify_until_iter", "25000"], 0, 40000, "extra"),
+    "ablate_random_offsets": ("hardening/runs/ablate_random_offsets", ["--densify_strategy", "steepest", "no_eig_upd"], 0, 30000, "extra"),
+    "steepgs_halved_opacity": ("hardening/runs/steepgs_halved_opacity", ["--densify_strategy", "steepest", "no_div_opacity"], 0, 30000, "extra"),
+    "better_long_seed1": ("hardening/runs/better_long_seed1", STEEP, 1, 45000, "extra"),
+    "adc_thres_seed1": ("hardening/runs/adc_thres_seed1", ADC, 1, 30000, "extra"),
 }
 # Priority order of (run, scene) tasks.
-ORDER = ["steepgs", "adc", "adc_thres", "steepgs_seed1", "steepgs_seed2", "no_densify", "better_long",
+ORDER = ["steepgs", "adc", "adc_thres", "steepgs_seed1", "better_long", "no_densify", "steepgs_seed2",
          "better_moresteps", "adc_thres_seed1", "ablate_random_offsets", "steepgs_halved_opacity",
          "better_long_seed1"]
 
@@ -88,8 +88,8 @@ def run_task(name, scene, gpu, log):
     cmd = [sys.executable, TRAIN, "-s", os.path.join(ROOT, "data", "downloads", "scenes", scene),
            "-i", "images", "-r", "1", "-m", work, "--S_estimator", "inv_cov", "--seed", str(seed),
            "--gpu", str(gpu), "--iterations", str(iters), "--test_iterations", "-1",
-           "--save_iterations", *map(str, saves), *args]
-    env = dict(os.environ, TQDM_DISABLE="1", PYTHONUNBUFFERED="1")
+           "--save_iterations", *map(str, saves), "--no_gui", *args]
+    env = dict(os.environ, TQDM_DISABLE="1", PYTHONUNBUFFERED="1", CUDA_DEVICE_ORDER="PCI_BUS_ID")
     t0 = time.time()
     with open(os.path.join(work, "stdout.log"), "w") as fo:
         fo.write(" ".join(cmd) + "\n")
@@ -119,10 +119,23 @@ def main():
     ap.add_argument("--scenes", nargs="+", default=SCENES)
     ap.add_argument("--deadline-hours", type=float, default=5.2,
                     help="do not start new runs after this many hours")
+    ap.add_argument("--max-gpus", type=int, default=int(os.environ.get("BENCH_MAX_GPUS", "2")),
+                    help="number of GPUs to use (the container may see GPUs of other jobs)")
     args = ap.parse_args()
-    import torch
-
-    n_gpu = max(1, torch.cuda.device_count())
+    # Use the GPUs with the most free memory: the container can see GPUs that
+    # belong to other jobs. Indices follow PCI order (CUDA_DEVICE_ORDER below).
+    free = []
+    try:
+        q = subprocess.run(["nvidia-smi", "--query-gpu=index,memory.free", "--format=csv,noheader,nounits"],
+                           capture_output=True, text=True, check=True).stdout
+        for line in q.strip().splitlines():
+            i, f = (int(x) for x in line.split(","))
+            free.append((f, i))
+    except Exception as exc:
+        print(f"[queue] nvidia-smi query failed: {exc}", flush=True)
+    gpus = [i for _, i in sorted(free, key=lambda t: (-t[0], t[1]))][: max(1, args.max_gpus)] or [0]
+    n_gpu = len(gpus)
+    print(f"[queue] cpus={len(os.sched_getaffinity(0))} gpus={gpus} free_mib={free}", flush=True)
     names = [n for n in ORDER if (args.runs is None and RUNS[n][4] in args.groups) or (args.runs and n in args.runs)]
     tasks = [(n, s) for n in names for s in args.scenes if not os.path.exists(dest_ply(n, s))]
     lock = threading.Lock()
@@ -170,7 +183,7 @@ def main():
                 state[t] = "done" if ok else "failed"
 
     log(f"{len(tasks)} tasks on {n_gpu} GPU(s): {tasks}")
-    threads = [threading.Thread(target=worker, args=(g,)) for g in range(n_gpu)]
+    threads = [threading.Thread(target=worker, args=(g,)) for g in gpus]
     for th in threads:
         th.start()
     for th in threads:

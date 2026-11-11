@@ -10,11 +10,13 @@
 # scripts/reproduce.sh.
 
 set -uo pipefail
+export CUDA_DEVICE_ORDER=PCI_BUS_ID
 ROOT=/home/user
 cd "$ROOT"
 mkdir -p hardening logs
 
 nvidia-smi || true
+echo "nproc=$(nproc)"
 python -c "import torch, diff_gaussian_rasterization, simple_knn; print('torch', torch.__version__, 'gpus', torch.cuda.device_count(), torch.cuda.get_device_name(0))" || exit 1
 python data/prepare_scenes.py || exit 1
 
@@ -29,7 +31,7 @@ if [ ! -f hardening/parity_smoke.json ]; then
 fi
 
 # 1. Trainings (reference first, then audit variants), all visible GPUs.
-python scripts/train_queue.py --groups reference audit --deadline-hours 4.2
+python scripts/train_queue.py --groups reference audit --deadline-hours 3.3
 
 # 2. One-time calibration of the evaluator constants from the ADC reference.
 if python -c "import json,sys; p=json.load(open('eval/test/protocol.json')); sys.exit(0 if all(c['adc_points'] for c in p['scenes'].values()) else 1)"; then
@@ -47,12 +49,9 @@ python hardening/check_renderer_parity.py outputs/steepgs hardening/parity_refer
 # 4. Reference scores (what future attempts are ranked against).
 bash scripts/evaluate.sh || echo "REFERENCE EVALUATION FAILED"
 
-# 5. Audit variants (gated, both sides) and raw metrics for every trained row.
+# 5. Audit variants (gated, both sides). Raw ADC quality is in hardening/raw_adc_*.json.
 python -m eval.test.evaluate_outputs --outputs-root hardening/runs --out hardening/scores_test_variants.json || echo "VARIANT TEST EVAL FAILED"
 python -m eval.train.evaluate_outputs --outputs-root hardening/runs --out hardening/scores_train_variants.json || echo "VARIANT TRAIN EVAL FAILED"
-rm -rf checkpoints/all_root && mkdir -p checkpoints/all_root
-for d in outputs/* hardening/runs/*; do [ -d "$d" ] && ln -sfn "$ROOT/$d" "checkpoints/all_root/$(basename "$d")"; done
-python -m eval.test.evaluate_outputs --raw --outputs-root checkpoints/all_root --out hardening/raw_test_all.json || echo "RAW EVAL FAILED"
 
 # 6. Shortcut submissions through the held-out evaluator.
 python hardening/make_shortcuts.py || echo "SHORTCUT BUILD FAILED"
