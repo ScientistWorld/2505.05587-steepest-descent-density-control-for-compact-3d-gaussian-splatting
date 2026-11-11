@@ -1,6 +1,4 @@
 # Once you set action to 'submit' or 'done', STOP immediately.
-action: submit
-gpus: 2
-test: false
-milestone: core_claim
-notes: "Restore the paper's opacity halving (official code had the flag inverted): retrain SteepGS reference (3 seeds) and ADC+Thres at the new budget, add in-scope end-of-densification pruning variants, then rescore reference, variants and shortcuts with the tightened per-scene quality floors."
+action: done
+milestone: core_claim_plus
+notes: "Hardened: gym rebuilt on the paper's real 3D setup (official SteepGS code, T&T+DB, held-out views only in eval/, evaluator re-renders PLYs, frozen constants, per-scene budget/quality floors, worst values on failure); paper's opacity halving restored; reference 26.98 dB at 0.465x 3DGS Gaussians; all redteam shortcuts closed; see HARDENING.md."
