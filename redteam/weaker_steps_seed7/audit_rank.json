@@ -1,0 +1,23 @@
+{
+  "test_exit": 0,
+  "scored_methods": [
+    "adc2d_baseline",
+    "steepgs2d"
+  ],
+  "candidate_present": true,
+  "metrics": {
+    "psnr": 24.90114676415962,
+    "ssim": 0.9051463367653723,
+    "l1_error": 0.019516267655687494,
+    "tail_l1_p95": 0.04332562542539237,
+    "bright_l1_error": 0.04217301928289416,
+    "channel_bias_l1": 0.010676511733648452,
+    "num_points": 0.417375,
+    "flops_proxy": 0.417375,
+    "splits": 6,
+    "point_reduction_vs_adc": 0.875
+  },
+  "control_delta_rank": -0.39365587856862705,
+  "case_cohort_delta_rank": -0.44742601010285077,
+  "pooled_delta_rank": -0.24452895735352062
+}

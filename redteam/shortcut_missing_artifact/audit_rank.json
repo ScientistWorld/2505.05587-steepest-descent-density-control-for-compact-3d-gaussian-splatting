@@ -1,0 +1,7 @@
+{
+  "test_exit": 0,
+  "scored_methods": [
+    "adc2d_baseline"
+  ],
+  "candidate_present": false
+}

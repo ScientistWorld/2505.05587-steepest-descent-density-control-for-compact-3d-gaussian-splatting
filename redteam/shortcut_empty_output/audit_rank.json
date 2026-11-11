@@ -1,0 +1,6 @@
+{
+  "test_exit": 1,
+  "scored_methods": [],
+  "candidate_present": false,
+  "failure": "ValueError: Need at least two samples to form train/test evaluation slices"
+}

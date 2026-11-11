@@ -1,0 +1,16 @@
+{
+  "test_exit": 0,
+  "scored_methods": [
+    "adc2d_baseline",
+    "steepgs2d"
+  ],
+  "candidate_present": true,
+  "nonfinite_metrics": [
+    "psnr",
+    "ssim",
+    "l1_error",
+    "tail_l1_p95",
+    "bright_l1_error",
+    "channel_bias_l1"
+  ]
+}

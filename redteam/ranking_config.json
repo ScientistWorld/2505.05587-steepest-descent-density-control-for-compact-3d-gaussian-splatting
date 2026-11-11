@@ -1,0 +1,55 @@
+{
+  "weight": 1.0,
+  "metrics": {
+    "psnr": {
+      "higher_is_better": true,
+      "coefficient": 1.0,
+      "description": "Global reconstruction fidelity on held-out sample colors."
+    },
+    "ssim": {
+      "higher_is_better": true,
+      "coefficient": 0.3,
+      "description": "Global structural similarity proxy for the reconstructed color field."
+    },
+    "l1_error": {
+      "higher_is_better": false,
+      "coefficient": -0.4,
+      "description": "Mean absolute color error across held-out samples."
+    },
+    "tail_l1_p95": {
+      "higher_is_better": false,
+      "coefficient": -0.25,
+      "description": "Ninety-fifth percentile per-sample absolute color error, penalizing localized failures hidden by averages."
+    },
+    "bright_l1_error": {
+      "higher_is_better": false,
+      "coefficient": -0.2,
+      "description": "Mean absolute error on the brightest quartile of target samples, which catches methods that mostly fit easy low-intensity regions."
+    },
+    "channel_bias_l1": {
+      "higher_is_better": false,
+      "coefficient": -0.15,
+      "description": "Absolute mean residual across color channels, penalizing systematic color bias."
+    },
+    "num_points": {
+      "higher_is_better": false,
+      "coefficient": -0.8,
+      "description": "Normalized Gaussian primitive count, the main compactness constraint."
+    },
+    "point_reduction_vs_adc": {
+      "higher_is_better": true,
+      "coefficient": 0.8,
+      "description": "Fractional primitive reduction relative to the ADC baseline under the same output contract."
+    },
+    "flops_proxy": {
+      "higher_is_better": false,
+      "coefficient": -0.2,
+      "description": "Machine-independent rendering-cost proxy proportional to primitives times evaluated samples."
+    },
+    "splits": {
+      "higher_is_better": false,
+      "coefficient": -0.1,
+      "description": "Total densification split count, discouraging unnecessary growth operations."
+    }
+  }
+}
