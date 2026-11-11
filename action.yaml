@@ -1,8 +1,2 @@
-# Once you set action to 'submit' or 'done', STOP immediately.
-# Do NOT sleep, poll, or wait for jobs. The system reads this file
-# only after your turn ends.
-action: pending
-gpus: 0
-test: false
-milestone: core_claim
-notes: ""
+action: done
+notes: "Audit complete: 29 hidden-test cases; honest quality controls pass beyond seed spread, but answer reconstruction, trusted costs, mutable comparisons, and failed-task shortcuts undermine scientific ranking. Report and evidence committed in 0485dd9."
