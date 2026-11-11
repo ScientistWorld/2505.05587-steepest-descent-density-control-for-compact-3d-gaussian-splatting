@@ -3,17 +3,31 @@
 - **Paper ID:** 2505.05587
 - **Title:** Steepest Descent Density Control for Compact 3D Gaussian Splatting
 - **Domain:** Computer Vision / Neural Rendering
-- **TL;DR:** The paper makes 3D Gaussian Splatting more compact by splitting only primitives whose local splitting matrix indicates a loss-reducing saddle escape direction.
+- **TL;DR:** Grow 3D Gaussian Splatting models by splitting only primitives whose
+  splitting matrix has a negative eigenvalue, into two half-opacity off-springs
+  along its least eigenvector: about half the Gaussians at the same quality.
 
-## Short Summary
+## The gym
 
-3DGS often creates redundant Gaussian primitives during adaptive densification. SteepGS analyzes densification as a local optimization problem and derives a splitting matrix for each primitive. The optimal split uses two offspring, halves opacity, and moves them along the least-eigenvector direction when the smallest eigenvalue is negative. The paper reports roughly 50% fewer points while preserving rendering quality on Mip-NeRF360, Tanks & Temples, and Deep Blending.
+- Data: the paper's Tanks&Temples (train, truck) and Deep Blending (drjohnson,
+  playroom) scenes from the public 3DGS archive, half resolution; every 8th view
+  held out for the hidden test (paper protocol), views at index 4 mod 8 for the
+  validation slice, the rest for training.
+- Submission: one standard 3DGS PLY per scene in `outputs/<method>/<scene>/`.
+- Scoring: the evaluator re-renders each PLY at the held-out cameras, measures
+  PSNR / SSIM / LPIPS and the Gaussian count relative to a frozen standard-3DGS
+  run, and fails runs that exceed the Gaussian budget or lose quality relative
+  to standard 3DGS on any scene.
 
-## Key Results
+## Key results
 
-- Mip-NeRF360: SteepGS reports 1.606M points versus 3.339M for 3DGS, with PSNR 28.734 versus 29.037.
-- Tanks & Temples: SteepGS reports 0.958M points versus 1.830M, with PSNR 23.684 versus 23.743.
-- Deep Blending: SteepGS reports 1.296M points versus 2.818M, with PSNR 29.963 versus 29.690.
+| | Gaussians vs 3DGS | PSNR | SSIM | LPIPS |
+|---|---:|---:|---:|---:|
+| paper, same 4 scenes, full res (Tables 2-5) | 0.488 | 26.82 (3DGS 26.72) | 0.873 (0.876) | 0.223 (0.211) |
+| this gym, half res, held-out test | 0.465 | 26.98 (3DGS 26.66) | 0.893 (0.891) | 0.145 (0.140) |
+
+Standard densification stopped at the same count loses 2.5 dB on the *train*
+scene and fails the quality floor (paper: -1.3 dB on Tanks&Temples).
 
 ---
 
@@ -21,15 +35,42 @@
 
 ## Research Question
 
-How can a Gaussian-splatting radiance-field reconstruction system maintain high novel-view or pixel reconstruction quality while using substantially fewer Gaussian primitives than a standard adaptive-density training pipeline?
+3D Gaussian Splatting reconstructs a scene from posed photographs as a set of
+anisotropic 3D Gaussian primitives that are rasterised to render new views.
+Training alternates gradient descent on the primitives with a density-control
+procedure that decides when primitives are added (and removed). Standard
+density control produces many redundant primitives: memory, storage and
+rendering cost grow with the primitive count.
+
+How can a Gaussian-splatting reconstruction reach the novel-view quality of the
+standard pipeline while using substantially fewer Gaussians?
+
+## Setting
+
+- Four real scenes used in the paper: Tanks&Temples *train* and *truck*, Deep
+  Blending *drjohnson* and *playroom* (images and COLMAP cameras / sparse
+  points as released with the 3DGS code base), at half of the released image
+  resolution.
+- Every 8th view (sorted by name, starting with the first) is held out for the
+  hidden test, exactly the paper's protocol; the views at index 4 mod 8 are a
+  held-out validation set. Training uses the remaining 6 of every 8 views
+  (`data/downloads/scenes/<scene>/images`), plus the COLMAP model in `sparse/0`.
+- Output: one 3D Gaussian splatting representation per scene, in the standard
+  3DGS PLY layout, at `outputs/<method_name>/<scene>/point_cloud.ply`.
 
 ## Why It Matters
 
-Dense Gaussian point clouds increase model storage, memory use, and rendering cost. A successful compact training procedure makes Gaussian splatting more practical for interactive and resource-constrained rendering.
+Fewer Gaussians mean smaller models, less GPU memory and faster rendering, which
+matters for mobile and VR deployment. Reducing redundancy while the model is
+trained (rather than compressing a finished model) also lowers training cost.
 
 ## Success Criteria
 
-A good solution should reconstruct held-out colors with high PSNR/SSIM and low error while reducing the final number of primitives and the compute implied by rendering those primitives. The quality/compactness tradeoff must be evaluated against a baseline trained under the same data and optimization budget.
+On held-out views, rendering quality (PSNR, SSIM, LPIPS) must stay comparable to
+the standard 3DGS pipeline on every scene, and the representation must use as
+few Gaussians as possible relative to that pipeline. A method that loses quality
+to save Gaussians, or gains quality by adding Gaussians beyond the budget, does
+not solve the problem.
 
 ---
 
@@ -37,40 +78,109 @@ A good solution should reconstruct held-out colors with high PSNR/SSIM and low e
 
 ## Key Contribution
 
-SteepGS introduces Steepest Density Control for 3D Gaussian Splatting. It replaces heuristic densification decisions with per-Gaussian splitting matrices that identify whether splitting can reduce the loss and which offspring displacement gives the steepest local decrease.
+SteepGS introduces Steepest Density Control (SDC) for 3D Gaussian Splatting. It
+treats densification as escaping saddle points of the photometric loss: for each
+Gaussian it accumulates a *splitting matrix* S = E[(dl/dsigma) Hessian of the
+Gaussian w.r.t. its own parameters] (position only, 3x3). Splitting can lower the
+loss only if S has a negative eigenvalue; the optimal split uses two
+off-springs, each with half the parent's opacity, displaced along +/- the
+eigenvector of the smallest eigenvalue.
 
-## Approach
+## Implementation in this gym (`method/SteepGS`, official code base)
 
-During training, SteepGS accumulates gradients and a splitting matrix for each Gaussian. At densification intervals, it computes the smallest eigenvalue and eigenvector of each matrix. A Gaussian is split only when the selection conditions hold and the smallest eigenvalue is below a negative threshold. The parent is replaced by two offspring displaced in the positive and negative least-eigenvector directions, with opacity halved for each offspring.
+- `python method/SteepGS/train.py -s <scene> -i images -r 1 --densify_strategy steepest --S_estimator inv_cov`
+  (wrapped by `scripts/method.sh` / `scripts/train_queue.py`), 30k steps, standard
+  3DGS optimiser and schedule, density control every 100 steps from 500 to 15k,
+  eigenvalue threshold -1e-6.
+- Selection = ADC's view-space gradient condition AND lambda_min(S) < -1e-6;
+  off-springs are placed along the least eigenvector (length drawn from the
+  parent's scale for large Gaussians, learning-rate-sized steps for small ones).
+- The splitting matrices are accumulated by the CUDA rasteriser's backward pass
+  (`inv_cov` estimator, the code base's documented default).
+- Opacity halving: the released code applied it only when the option
+  `no_div_opacity` was passed (inverted flag) and never to the parent in the
+  clone branch. The gym restores the paper's rule (Theorem 2, Algorithm 1): both
+  off-springs carry half the parent's opacity; `no_div_opacity` now turns the
+  halving off. Measured effect on this benchmark: without halving the method
+  keeps 0.63x of the standard Gaussian count at 26.76 dB; with the paper's
+  halving 0.47x at 26.98 dB.
+- Other changes to the official code are plumbing only: `--seed`/`--gpu`, a
+  loader that skips held-out views and reads the half-resolution PNGs,
+  `--densify_max_points` (the paper's "3DGS + Thres." baseline), an optional
+  `--final_prune_opacity` schedule (off by default), and two CUDA 12 include
+  fixes.
 
 ## Main Claims
 
-The primary claim is that this density-control rule reduces Gaussian counts by about 50% without sacrificing rendering quality. Secondary claims are that the rule selects saddle-region primitives, avoids redundant densification, improves memory and rendering efficiency, and can be integrated into the 3DGS CUDA rasterization pipeline.
+About 50% fewer Gaussians than standard 3DGS without sacrificing rendering
+quality (Tables 1-5), and better quality than standard densification stopped at
+the same Gaussian count (Table 1, "3DGS + Thres."). Secondary claims (training
+time, memory, FPS; comparisons with 3DGS-MCMC, Revising-GS; Mip-NeRF 360) are not
+part of this gym.
 
 ---
 
 # Evaluation
 
-## Metrics
+## What is submitted
 
-- PSNR on held-out samples, higher is better.
-- Global SSIM proxy on held-out samples, higher is better.
-- Mean absolute color error, lower is better.
-- Ninety-fifth percentile per-sample L1 error, lower is better.
-- Bright-region L1 error on the brightest target quartile, lower is better.
-- Mean absolute channel bias, lower is better.
-- Final number of Gaussian primitives, lower is better when quality remains competitive. In `scores.json`, this is normalized to paper-equivalent million-point units by mapping the local ADC baseline to the paper's 3.339M-point Mip-NeRF360 ADC reference; raw local counts remain in each run's `outputs/*/metrics.json`.
-- Point reduction relative to the adaptive-density baseline, higher is better.
-- A hardware-independent rendering-cost proxy proportional to sample-count times primitive-count, lower is better. This score is normalized with the same baseline-relative scale as the point count.
-- Total densification splits, lower is better when quality remains competitive.
+Every immediate sub-directory of `outputs/` is a method. For each scene in
+{train, truck, drjohnson, playroom} it must contain `<scene>/point_cloud.ply`: a
+binary little-endian PLY with one vertex per Gaussian and the standard 3DGS
+properties `x y z f_dc_0..2 [f_rest_0..44] opacity scale_0..2 rot_0..3`
+(opacity as a logit, scales as logs, rotation as a quaternion w,x,y,z;
+spherical-harmonic degree 0-3 inferred from the number of `f_rest_*`). Other
+properties and any other files are ignored.
 
-## Baselines and Targets
+## How it is scored
 
-The reference target is a quality-versus-compactness comparison: a reconstruction system should use substantially fewer Gaussian primitives than the adaptive-density baseline while preserving competitive held-out reconstruction fidelity. The local benchmark uses a deterministic procedural 2D splatting scene and reports the same metric families in a lightweight form.
+The evaluator (`eval/test`, held-out test views; `eval/train`, validation views)
+reads each PLY, counts its Gaussians, and re-renders it with its own renderer at
+the held-out cameras. The renderer reproduces the forward pass of the standard
+tile-based 3DGS rasteriser (EWA projection with 0.3 px low-pass, 3-sigma tiles,
+depth-sorted alpha compositing, black background); it matches the reference
+CUDA rasteriser to within ~85 dB PSNR. Renders are clamped and quantised to 8
+bits and compared with the ground-truth images (released JPGs, 2x box-filtered
+exactly like the training images).
 
-## Evaluation Protocol
+Metrics, averaged per scene over its views and then over the four scenes:
 
-Run a method so that it writes predictions and metadata under `outputs/`, then run `scripts/evaluate.sh`. The evaluator reads saved prediction artifacts, reconstructs the deterministic benchmark targets from `data/`, and writes `scoring/scores.json`; it does not import method implementations or rerun training.
+| metric | direction | meaning |
+|---|---|---|
+| `psnr` (primary) | higher | per-view PSNR in dB |
+| `ssim` | higher | per-view SSIM, 11x11 Gaussian window |
+| `lpips` | lower | per-view LPIPS, VGG-16 v0.1 heads on [0,1] inputs |
+| `num_points_ratio` | lower | Gaussians / Gaussians of the evaluator's fixed standard-3DGS reference on that scene |
+
+Rank coefficients (`scoring/reference.json`): psnr 1.0, ssim 0.5, lpips 0.5,
+num_points_ratio 1.0.
+
+## Feasibility (fixed by the evaluator, `eval/*/protocol.json`)
+
+Per scene, relative to the evaluator's frozen standard-3DGS (adaptive density
+control) reference run on the same views:
+
+- at most 0.85x its Gaussian count;
+- PSNR at least its PSNR - 0.5 dB, SSIM at least its SSIM - 0.015, LPIPS at most
+  its LPIPS + 0.03 (quality comparable to the standard pipeline).
+
+A run that misses a scene, has an unreadable, empty or non-finite PLY, exceeds
+the budget, or misses a quality floor on any scene is **failed** and gets the
+worst value of every metric (the feasibility bounds averaged over scenes), which
+is never better than any feasible run.
+
+## Running it
+
+`bash scripts/evaluate_test.sh` and `bash scripts/evaluate_train.sh` take no
+arguments, score every method under `outputs/`, and write
+`scoring/scores_test.json` / `scoring/scores_train.json` (per-scene values and
+failure reasons are under `_diagnostics`). A GPU is strongly recommended:
+on one A100 a method takes about 45 s per slice; the CPU fallback produces the
+same numbers but is two to three orders of magnitude slower.
+
+The evaluator needs `scripts/download.sh` to have populated the ground truth and
+LPIPS weights; their sha256 hashes are checked and a modified file fails every
+run.
 
 ---
 
@@ -341,12 +451,33 @@ Run a method so that it writes predictions and metadata under `outputs/`, then r
 
 </details>
 
+### Iteration 11: claude-opus-5-5 (hardener)
+- **Milestone**: `core_claim` | **Status**: done
+- **Working time**: 44m | **GPU**: 11.2h
+- **Jobs**: 10 total (8 completed, 2 failed)
+
+<details>
+<summary>Progress Log</summary>
+
+### [2026-06-19] - core_claim (2D procedural substitute; superseded)
+- Earlier iterations reproduced a compact-splitting effect on a 2D toy field. The redteam audit (REDTEAM.md) showed its test was regenerable from public code and its reference was not reproducible.
+
+### [2026-11-11] - core_claim_plus (hardening iteration, paper's real setup)
+- Rebuilt on the paper's Tanks&Temples (train, truck) and Deep Blending (drjohnson, playroom) scenes with the official SteepGS/3DGS code, half resolution, paper's every-8th-view test split.
+- Restored the paper's off-spring opacity halving (the released code had it behind an inverted flag).
+- Held-out test: SteepGS 26.982 dB / SSIM 0.8925 / LPIPS 0.1448 with 0.465x the Gaussians of standard 3DGS (26.662 / 0.8912 / 0.1404); paper on the same scenes: 0.488x at +0.11 dB. Three seeds span 0.12 dB.
+- Secondary claim (Table 1, "3DGS + Thres."): standard densification stopped at the same count loses 2.5 dB on train and fails the quality floor.
+- Ablation: removing the paper's opacity halving raises the count to 0.63x and lowers PSNR by 0.22 dB.
+- Not reproduced: Mip-NeRF 360, 3DGS-MCMC / Revising-GS comparisons, training time / memory / FPS.
+
+</details>
+
 
 ---
 
 # Reproduction Milestones
 
-**Current: core_claim**
+**Current: core_claim_plus**
 
 ## Stop Justification
 - Completed at milestone `core_claim`.

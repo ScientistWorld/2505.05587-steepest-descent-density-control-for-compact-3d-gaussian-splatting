@@ -16,4 +16,4 @@
 - Not reproduced: Mip-NeRF 360, 3DGS-MCMC / Revising-GS comparisons, training time / memory / FPS.
 
 ## Stop Justification
-- Completed at milestone `core_claim_plus`: the central claim and the matched-budget comparison hold on two of the paper's datasets with seeds; further claims need Mip-NeRF 360 and other code bases.
+- Completed at milestone `core_claim`.
