@@ -25,6 +25,16 @@ def snapshot():
     STATE.mkdir(exist_ok=True, parents=True)
     dest = STATE / "original_outputs"
     if not dest.exists():
+        # Allow replay on a fresh clone whose generated outputs were not shipped.
+        # In this audit, the pre-existing trained reference is reused unchanged.
+        (ROOT / "outputs").mkdir(exist_ok=True)
+        for name, command in [
+            ("adc2d", [sys.executable, "-m", "baseline.sdc2d.adc2d", "--device", "cpu", "--output", "outputs/adc2d"]),
+            ("steepgs2d", [sys.executable, "-m", "method.sdc2d.steepgs2d", "--device", "cpu", "--max-points", "72", "--split-threshold=-2e-5", "--output", "outputs/steepgs2d"]),
+        ]:
+            if not (ROOT / "outputs" / name / "predictions.npz").is_file():
+                if call(command, STATE / f"bootstrap_{name}.log"):
+                    raise RuntimeError(f"Cannot rebuild reference artifact {name}")
         (ROOT / "outputs").rename(dest)
     saved = STATE / "original_scores"
     if not saved.exists():
@@ -110,13 +120,13 @@ def run_case(name):
         scene = make_scene(seed=7)
         pred = scene.test_rgb.numpy()
         details["source"] = "public make_scene(seed=7).test_rgb, no fit and no learned representation"
-    elif name in ["shortcut_cost_fields", "shortcut_constant_zero", "shortcut_constant_with_decoy", "shortcut_negative_costs", "shortcut_nan_output"]:
+    elif name in ["shortcut_cost_fields", "shortcut_constant_zero", "shortcut_constant_with_decoy", "shortcut_negative_costs", "shortcut_nan_output", "shortcut_failed_task"]:
         if name != "shortcut_cost_fields":
             pred[:] = np.nan if name == "shortcut_nan_output" else 0
         meta["metrics"].update(num_points=0, flops_proxy=0, splits=0)
-        if name == "shortcut_negative_costs":
+        if name in ["shortcut_negative_costs", "shortcut_failed_task"]:
             meta["metrics"].update(num_points=-1000000, flops_proxy=-1000000000000, splits=-1000000)
-        if name == "shortcut_constant_with_decoy":
+        if name in ["shortcut_constant_with_decoy", "shortcut_failed_task"]:
             other = ROOT / "outputs/shortcut_quality_decoy"
             shutil.copytree(STATE / "original_outputs/steepgs2d", other)
             np.savez_compressed(other / "predictions.npz", pred=np.full_like(pred, 1e20))

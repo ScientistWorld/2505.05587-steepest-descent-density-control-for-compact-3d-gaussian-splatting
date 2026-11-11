@@ -26,5 +26,6 @@
   "shortcut_empty_output",
   "shortcut_missing_artifact",
   "shortcut_null_cost",
-  "shortcut_empty_results"
+  "shortcut_empty_results",
+  "shortcut_failed_task"
 ]

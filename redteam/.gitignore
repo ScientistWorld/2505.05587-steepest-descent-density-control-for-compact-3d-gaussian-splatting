@@ -5,3 +5,5 @@ _state/
 **/training.log
 **/train_evaluation.log
 batch.log
+
+confirmation.log
