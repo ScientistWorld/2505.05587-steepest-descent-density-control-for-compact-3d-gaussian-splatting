@@ -1,0 +1,7 @@
+_state/
+**/__pycache__/
+**/artifacts/
+**/evaluation.log
+**/training.log
+**/train_evaluation.log
+batch.log
